@@ -1,18 +1,29 @@
-.logo.vite:hover {
-  filter: drop-shadow(0 0 2em #747bff);
-}
+/* Sunkiss's look, taken from Courier's QuickView: text sitting straight on the window's
+   frosted glass, faint "pill" controls with hairline edges, and one accent colour.
+   The glass itself is a native macOS material (src-tauri/src/lib.rs); this sheet only
+   draws what's on top of it. The font is Sunkiss's own, not QuickView's DM Mono. */
 
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafb);
-}
 :root {
+  /* Dark first, as in QuickView; the light versions are below. */
+  --ink: #f4f6fa;
+  --dim: rgba(244, 246, 250, 0.62);
+  --faint: rgba(244, 246, 250, 0.4);
+  --glass-strong: rgba(251, 251, 252, 0.219); /* the search box's lift off the glass */
+  --pill: rgba(255, 255, 255, 0.14);
+  --pill-hover: rgba(255, 255, 255, 0.22);
+  --edge: rgba(255, 255, 255, 0.18);
+  --accent: #4d7dfa;
+  --accent-hover: #5d89ff;
+  --print-edge: rgba(255, 255, 255, 0.42); /* the white border around a thumbnail */
+  --warn: #ffd9a8;
+  --radius: 18px;
+  --ground: #262a31; /* only used outside the desktop app, where there's no glass */
+
   font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
   font-size: 16px;
   line-height: 24px;
   font-weight: 400;
-
-  color: #0f0f0f;
-  background-color: #f6f6f6;
+  color: var(--ink);
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -21,24 +32,48 @@
   -webkit-text-size-adjust: 100%;
 }
 
+@media (prefers-color-scheme: light) {
+  :root {
+    --ink: #0e1420;
+    --dim: rgba(14, 20, 32, 0.62);
+    --faint: rgba(14, 20, 32, 0.42);
+    --glass-strong: rgba(255, 255, 255, 0.3);
+    --pill: rgba(20, 23, 29, 0.06);
+    --pill-hover: rgba(20, 23, 29, 0.12);
+    --edge: rgba(20, 23, 29, 0.1);
+    --warn: #8a5a12;
+    --ground: #eceef2;
+  }
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background: transparent; /* the frosted window shows through */
+}
+
+/* A plain browser has no glass behind the page, so the text gets a ground to sit on. */
+html:not([data-shell="tauri"]) body {
+  background: var(--ground);
+}
+
+/* The window's title bar is invisible; this strip along the top is what you drag it by. */
+.titlebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 28px;
+  z-index: 10;
+}
+
 .container {
   margin: 0;
-  padding-top: 10vh;
+  padding: 8vh 24px 32px;
   display: flex;
   flex-direction: column;
-  justify-content: center;
   text-align: center;
-}
-
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: 0.75s;
-}
-
-.logo.tauri:hover {
-  filter: drop-shadow(0 0 2em #24c8db);
 }
 
 .row {
@@ -46,71 +81,277 @@
   justify-content: center;
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-
-a:hover {
-  color: #535bf2;
-}
-
 h1 {
-  text-align: center;
-}
-
-input,
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
+  margin: 0 0 20px;
+  font-size: 27px;
   font-weight: 500;
-  font-family: inherit;
-  color: #0f0f0f;
-  background-color: #ffffff;
-  transition: border-color 0.25s;
-  box-shadow: 0 2px 2px rgba(0, 0, 0, 0.2);
+  line-height: 1.2;
 }
 
-button {
-  cursor: pointer;
+a {
+  color: var(--accent);
 }
 
-button:hover {
-  border-color: #396cd8;
-}
-button:active {
-  border-color: #396cd8;
-  background-color: #e8e8e8;
-}
+/* Controls ---------------------------------------------------------------- */
 
+button,
 input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
 button {
+  padding: 0.45em 1.1em;
+  border: 1px solid var(--edge);
+  border-radius: 999px;
+  background: var(--pill);
+  cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease, opacity 140ms ease;
+}
+button:hover:not(:disabled) {
+  background: var(--pill-hover);
+}
+button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+input:not([type="checkbox"]),
+select {
+  padding: 0.55em 0.9em;
+  border: 1px solid var(--edge);
+  border-radius: 12px;
+  background: var(--glass-strong);
   outline: none;
 }
-
-#greet-input {
-  margin-right: 5px;
+input:not([type="checkbox"]):focus,
+select:focus {
+  border-color: var(--accent);
+}
+input::placeholder {
+  color: var(--faint);
+}
+input[type="checkbox"],
+progress {
+  accent-color: var(--accent);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    color: #f6f6f6;
-    background-color: #2f2f2f;
-  }
+/* The search box: QuickView's composer. It's the one thing you act on rather than
+   read, so it's the one thing with a lift off the glass and an edge. */
+.composer {
+  box-sizing: border-box;
+  width: min(100%, 520px);
+  margin: 0 auto;
+  padding: 7px 7px 7px 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--edge);
+  border-radius: var(--radius);
+  background: var(--glass-strong);
+}
+.composer:focus-within {
+  border-color: var(--accent);
+}
+.composer input:not([type="checkbox"]) {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 0;
+  border: none;
+  background: transparent;
+  font-size: 14px;
+}
 
-  a:hover {
-    color: #24c8db;
-  }
+/* Round icon buttons, and the solid accent one that sends. */
+.round {
+  width: 28px;
+  height: 28px;
+  flex: none;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+.round svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.send,
+.primary {
+  border-color: transparent;
+  background: var(--accent);
+  color: #fff;
+}
+.send:hover:not(:disabled),
+.primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+.send svg {
+  stroke-width: 2;
+}
 
-  input,
-  button {
-    color: #ffffff;
-    background-color: #0f0f0f98;
+.option {
+  margin-top: 10px;
+  font-size: 12.5px;
+  color: var(--dim);
+}
+
+/* Messages ----------------------------------------------------------------- */
+
+.note {
+  font-size: 13.5px;
+  color: var(--dim);
+}
+.error {
+  font-size: 13.5px;
+  color: var(--warn);
+}
+
+/* Something is on its way: breathes rather than sitting still, so it reads as
+   "working" rather than "stuck". */
+.waiting {
+  font-size: 13.5px;
+  color: var(--dim);
+  animation: breathe 1.4s ease-in-out infinite;
+}
+@keyframes breathe {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 1; }
+}
+
+/* New content fades in rather than popping. */
+.fade-in {
+  animation: fade-in 380ms ease-out both;
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .waiting,
+  .fade-in {
+    animation: none;
   }
-  button:active {
-    background-color: #0f0f0f69;
-  }
+}
+
+/* Previews and thumbnails --------------------------------------------------- */
+
+.preview {
+  display: flex;
+  justify-content: center;
+  margin-top: 24px;
+}
+.preview img {
+  max-width: min(100%, 800px);
+  border-radius: 10px;
+  box-shadow: 0 12px 32px -12px rgba(0, 0, 0, 0.55);
+}
+
+/* Thumbnails are QuickView's "prints": a translucent white border and a soft shadow,
+   so a photo has an edge to stop against instead of bleeding into the glass. */
+.prints {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-start; /* differently shaped prints line up along the top */
+  gap: 22px 26px;
+  padding: 28px 16px;
+}
+.print {
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  border-radius: 0;
+  background: none;
+}
+.print:hover:not(:disabled) {
+  background: none;
+}
+.print img {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 200px; /* keeps each image's shape within 200×200 */
+  max-height: 200px;
+  border: 3px solid var(--print-edge);
+  border-radius: 3px;
+  box-shadow: 0 3px 10px -2px rgba(0, 0, 0, 0.45);
+  background: var(--pill);
+  transition: transform 140ms ease, border-color 140ms ease;
+}
+.print:hover img {
+  transform: translateY(-2px);
+}
+.print[aria-pressed="true"] img {
+  border-color: var(--accent);
+}
+.caption {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  color: var(--dim);
+}
+
+/* Sidebar ------------------------------------------------------------------ */
+
+/* Sits straight on the glass like QuickView's conversation: no fill of its own. */
+.sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  width: 180px;
+  flex: none;
+  box-sizing: border-box;
+  padding: 44px 12px 16px; /* the top clears the window's close/minimise buttons */
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-right: 1px solid var(--edge);
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 6px 18px;
+  font-weight: 600;
+}
+.brand img {
+  width: 26px;
+  height: 26px;
+  object-fit: cover;
+  border-radius: 7px;
+}
+.nav-link {
+  width: 100%;
+  padding: 7px 12px;
+  border-color: transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--dim);
+  text-align: left;
+  font-size: 14px;
+}
+.nav-link:hover:not(:disabled) {
+  background: var(--pill);
+  color: var(--ink);
+}
+.nav-link[aria-current="page"] {
+  border-color: var(--edge);
+  background: var(--pill);
+  color: var(--ink);
 }

@@ -30,7 +30,7 @@ export default function Settings() {
           </label>
           <label style={styles.field}>
             Theme
-            <select style={styles.select} value={theme} onChange={(e) => setTheme(e.currentTarget.value)}>
+            <select value={theme} onChange={(e) => setTheme(e.currentTarget.value)}>
               <option value="system">Match system</option>
               <option value="light">Light</option>
               <option value="dark">Dark</option>
@@ -49,17 +49,12 @@ export default function Settings() {
         <fieldset style={styles.section}>
           <legend style={styles.legend}>Files</legend>
           <label style={styles.checkRow}>
-            <input
-              type="checkbox"
-              style={styles.checkbox}
-              checked={showPreviews}
-              onChange={(e) => setShowPreviews(e.currentTarget.checked)}
-            />
+            <input type="checkbox" checked={showPreviews} onChange={(e) => setShowPreviews(e.currentTarget.checked)} />
             Show image previews
           </label>
           <label style={styles.field}>
             Keep deleted files for
-            <select style={styles.select} value={keepDeletedDays} onChange={(e) => setKeepDeletedDays(e.currentTarget.value)}>
+            <select value={keepDeletedDays} onChange={(e) => setKeepDeletedDays(e.currentTarget.value)}>
               <option value="7">7 days</option>
               <option value="30">30 days</option>
               <option value="90">90 days</option>
@@ -70,7 +65,7 @@ export default function Settings() {
         <fieldset style={styles.section}>
           <legend style={styles.legend}>Notifications</legend>
           <label style={styles.checkRow}>
-            <input type="checkbox" style={styles.checkbox} checked={notify} onChange={(e) => setNotify(e.currentTarget.checked)} />
+            <input type="checkbox" checked={notify} onChange={(e) => setNotify(e.currentTarget.checked)} />
             Notify me when someone updates a file
           </label>
         </fieldset>
@@ -81,23 +76,26 @@ export default function Settings() {
           <p style={styles.muted}>Connected to {serverUrl}</p>
         </fieldset>
 
-        <button type="submit" style={styles.save}>
+        <button type="submit" className="primary" style={styles.save}>
           Save
         </button>
-        {saved && <p style={styles.muted}>Saved (not really yet: this screen is filler).</p>}
+        {saved && (
+          <p className="note fade-in" style={styles.muted}>
+            Saved (not really yet: this screen is filler).
+          </p>
+        )}
       </form>
     </main>
   );
 }
 
 const styles = {
-  form: { maxWidth: 520, width: "100%", margin: "0 auto", textAlign: "left", display: "flex", flexDirection: "column", gap: 16 },
-  section: { border: "1px solid rgba(128, 128, 128, 0.3)", borderRadius: 12, padding: 16, display: "flex", flexDirection: "column", gap: 12 },
-  legend: { fontWeight: 600, padding: "0 6px" },
-  field: { display: "flex", flexDirection: "column", gap: 6 },
-  checkRow: { display: "flex", alignItems: "center", gap: 8 },
-  checkbox: { padding: 0, boxShadow: "none" },
-  select: { padding: "0.6em 1.2em", borderRadius: 8, border: "1px solid transparent", fontSize: "1em", fontFamily: "inherit", boxShadow: "0 2px 2px rgba(0, 0, 0, 0.2)" },
-  muted: { margin: 0, opacity: 0.7 },
+  form: { maxWidth: 480, width: "100%", margin: "0 auto", textAlign: "left", display: "flex", flexDirection: "column", gap: 28 },
+  // Nothing is drawn around a group, as in QuickView: its label says where it starts.
+  section: { margin: 0, padding: 0, border: "none", display: "flex", flexDirection: "column", gap: 12 },
+  legend: { padding: 0, marginBottom: 10, fontSize: 11, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--dim)" },
+  field: { display: "flex", flexDirection: "column", gap: 6, fontSize: 13.5 },
+  checkRow: { display: "flex", alignItems: "center", gap: 8, fontSize: 13.5 },
+  muted: { margin: 0, fontSize: 13.5, color: "var(--dim)" },
   save: { alignSelf: "flex-start" },
 } satisfies Record<string, CSSProperties>;

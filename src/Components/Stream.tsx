@@ -1,13 +1,12 @@
 import { useState } from "react";
+import { SERVER } from "../api";
 import { useStream } from "../hooks/useStream";
-
-const SERVER = "http://localhost:8787";
+import SearchBox from "./SearchBox";
 
 const kb = (bytes: number) => `${Math.round(bytes / 1024).toLocaleString()} KB`;
 
 // Streaming test: fetch a file chunk by chunk, show progress, then show the image.
 export default function Stream() {
-  const [name, setName] = useState(""); // what's typed in the box
   const [search, setSearch] = useState(""); // the name last submitted
   const [fullSize, setFullSize] = useState(false); // the whole file, or a resized preview
 
@@ -18,51 +17,35 @@ export default function Stream() {
     <main className="container">
       <h1>Streaming Test V1.0</h1>
 
-      <form
-        className="row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          setSearch(name.trim());
-        }}
-      >
-        <input
-          id="greet-input"
-          onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="Search, Ask, Task"
-        />
-        <button type="submit">submitk</button>
-      </form>
-      <label>
-        <input
-          type="checkbox"
-          checked={fullSize}
-          onChange={(e) => setFullSize(e.currentTarget.checked)}
-          style={{ boxShadow: "none" }}
-        />{" "}
-        Full size (otherwise an 800px preview)
+      <SearchBox onSearch={setSearch} />
+      <label className="option">
+        <input type="checkbox" checked={fullSize} onChange={(e) => setFullSize(e.currentTarget.checked)} /> Full size
+        (otherwise an 800px preview)
       </label>
 
-      {stream.status === "loading" && (
-        <p>
-          Streaming… {kb(stream.received)}
-          {stream.total && (
-            <>
-              {" "}of {kb(stream.total)} <progress value={stream.received} max={stream.total} />
-            </>
-          )}
-        </p>
-      )}
-      {stream.status === "done" &&
-        (stream.type.startsWith("image/") ? (
-          <p>
-            <img src={stream.src} alt={search} style={{ maxWidth: "100%" }} />
+      <section className="preview">
+        {stream.status === "loading" && (
+          <p className="waiting">
+            Streaming… {kb(stream.received)}
+            {stream.total && (
+              <>
+                {" "}of {kb(stream.total)} <progress value={stream.received} max={stream.total} />
+              </>
+            )}
           </p>
-        ) : (
-          <p>
-            Downloaded {kb(stream.received)} ({stream.type}); there's no preview for this type.
-          </p>
-        ))}
-      {stream.status === "error" && <p>{stream.notFound ? `No file named “${search}”` : stream.message}</p>}
+        )}
+        {stream.status === "done" &&
+          (stream.type.startsWith("image/") ? (
+            <img className="fade-in" src={stream.src} alt={search} />
+          ) : (
+            <p className="note">
+              Downloaded {kb(stream.received)} ({stream.type}); there's no preview for this type.
+            </p>
+          ))}
+        {stream.status === "error" && (
+          <p className="error">{stream.notFound ? `No file named “${search}”` : stream.message}</p>
+        )}
+      </section>
     </main>
   );
 }

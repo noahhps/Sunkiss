@@ -1,5 +1,3 @@
-import type { CSSProperties } from "react";
-
 export type Screen = "home" | "stream" | "settings";
 
 const LINKS: { screen: Screen; label: string }[] = [
@@ -8,16 +6,20 @@ const LINKS: { screen: Screen; label: string }[] = [
   { screen: "settings", label: "Settings" },
 ];
 
-// Top navigation: one button per screen, the current one highlighted.
+// Sidebar navigation, in QuickView's style: straight on the glass, the current screen in a pill.
 export default function NavBar({ current, onNavigate }: { current: Screen; onNavigate: (screen: Screen) => void }) {
   return (
-    <nav style={styles.nav}>
+    <nav className="sidebar">
+      <div className="brand">
+        <img src="/sunkiss.svg" alt="" />
+        Sunkiss
+      </div>
       {LINKS.map(({ screen, label }) => (
         <button
           key={screen}
+          className="nav-link"
           onClick={() => onNavigate(screen)}
           aria-current={current === screen ? "page" : undefined}
-          style={current === screen ? styles.active : undefined}
         >
           {label}
         </button>
@@ -25,8 +27,3 @@ export default function NavBar({ current, onNavigate }: { current: Screen; onNav
     </nav>
   );
 }
-
-const styles = {
-  nav: { display: "flex", justifyContent: "center", gap: 8, padding: 12 },
-  active: { borderColor: "#396cd8" },
-} satisfies Record<string, CSSProperties>;
