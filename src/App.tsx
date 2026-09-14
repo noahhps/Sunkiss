@@ -1,42 +1,22 @@
 import { useState } from "react";
-import reactLogo from "./assets/react.svg";
-import { invoke } from "@tauri-apps/api/core";
+import NavBar, { type Screen } from "./Components/NavBar";
+import Home from "./Components/Home";
+import Settings from "./Components/Settings";
+import Stream from "./Components/Stream";
 import "./App.css";
 
-function App() {
-  const [greetMsg, setGreetMsg] = useState("");
-  const [name, setName] = useState("");
+const SCREENS = { home: Home, stream: Stream, settings: Settings };
 
-  async function greet() {
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    setGreetMsg(await invoke("greet", { name }));
-  }
+// The app's frame: the nav bar on top, and whichever screen is selected below it.
+function App() {
+  const [screen, setScreen] = useState<Screen>("home");
+  const Current = SCREENS[screen];
 
   return (
-    <main className="container">
-      <h1>Welcome to Tauri + React</h1>
-
-      <div className="Menu">
-        
-      </div>
-      <p></p>
-
-      <form
-        className="row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          greet();
-        }}
-      >
-        <input
-          id="greet-input"
-          onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="Enter a name..."
-        />
-        <button type="submit">Greet</button>
-      </form>
-      <p>{greetMsg}</p>
-    </main>
+    <>
+      <NavBar current={screen} onNavigate={setScreen} />
+      <Current />
+    </>
   );
 }
 
