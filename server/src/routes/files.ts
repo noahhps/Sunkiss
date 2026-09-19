@@ -29,12 +29,18 @@ const CONTENT_TYPES: Record<string, string> = {
 
 
 
-// GET /files → the name and type of every file in FILES_DIR
+// GET /files → the name, type, and last-changed time of every file in FILES_DIR
 files.get('/', async (c) => {
   const entries = await readdir(FILES_DIR, { withFileTypes: true });
-  const list = entries
-    .filter((entry) => entry.isFile() && !entry.name.startsWith('.'))
-    .map((entry) => ({ name: entry.name, type: typeOf(entry.name) }));
+  const list = await Promise.all(
+    entries
+      .filter((entry) => entry.isFile() && !entry.name.startsWith('.'))
+      .map(async (entry) => {
+        const info = await stat(path.join(FILES_DIR, entry.name));
+        // When the file was last saved, as an ISO date the client can put on its timeline.
+        return { name: entry.name, type: typeOf(entry.name), modified: info.mtime.toISOString() };
+      }),
+  );
   return c.json(list);
 });
 

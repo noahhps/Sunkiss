@@ -20,6 +20,7 @@ function App() {
       <div style={{ flex: 1, minWidth: 0 }}>
         <Current />
       </div>
+
     </div>
   );
 }

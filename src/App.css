@@ -18,6 +18,17 @@
   --warn: #ffd9a8;
   --radius: 18px;
   --ground: #262a31; /* only used outside the desktop app, where there's no glass */
+  --sidebar-w: 180px;
+
+  /* Liquid glass for the floating search bar (Courier's recipe from its sidebar): a
+     diagonal highlight rather than a flat wash, because real glass is curved. */
+  --liquid-fill: linear-gradient(
+    158deg,
+    rgba(255, 255, 255, 0.14) 0%,
+    rgba(255, 255, 255, 0.04) 42%,
+    rgba(255, 255, 255, 0.09) 100%
+  );
+  --liquid-shadow: 0 18px 40px -14px rgba(0, 0, 0, 0.55);
 
   font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
   font-size: 16px;
@@ -43,6 +54,14 @@
     --edge: rgba(20, 23, 29, 0.1);
     --warn: #8a5a12;
     --ground: #eceef2;
+    /* White on a pale background has less to push against, so the glass needs more of it. */
+    --liquid-fill: linear-gradient(
+      158deg,
+      rgba(255, 255, 255, 0.62) 0%,
+      rgba(255, 255, 255, 0.34) 42%,
+      rgba(255, 255, 255, 0.5) 100%
+    );
+    --liquid-shadow: 0 18px 40px -16px rgba(20, 23, 29, 0.3);
   }
 }
 
@@ -74,6 +93,10 @@ html:not([data-shell="tauri"]) body {
   display: flex;
   flex-direction: column;
   text-align: center;
+}
+/* Room at the bottom so the last row isn't stuck behind the floating search bar. */
+.container:has(.composer) {
+  padding-bottom: 120px;
 }
 
 .row {
@@ -138,22 +161,43 @@ progress {
   accent-color: var(--accent);
 }
 
-/* The search box: QuickView's composer. It's the one thing you act on rather than
-   read, so it's the one thing with a lift off the glass and an edge. */
+/* The search box: QuickView's composer, floating above the page as a pane of liquid glass.
+   It stays put near the bottom, centred in the area right of the sidebar, while the page
+   scrolls underneath it. */
 .composer {
+  position: fixed;
+  z-index: 20;
+  bottom: 24px;
+  left: calc(var(--sidebar-w) + (100vw - var(--sidebar-w)) / 2);
+  transform: translateX(-50%);
   box-sizing: border-box;
-  width: min(100%, 520px);
-  margin: 0 auto;
-  padding: 7px 7px 7px 16px;
+  width: min(560px, calc(100vw - var(--sidebar-w) - 48px));
+  padding: 9px 9px 9px 20px;
   display: flex;
   align-items: center;
   gap: 8px;
-  border: 1px solid var(--edge);
-  border-radius: var(--radius);
-  background: var(--glass-strong);
+}
+/* The liquid glass, shared by the search bar and the back button. */
+.composer,
+.back {
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+  background: var(--liquid-fill);
+  /* Blur what's behind it, and push its colour up rather than greying it out, so
+     thumbnails passing underneath come through alive. */
+  -webkit-backdrop-filter: blur(22px) saturate(170%) brightness(1.08);
+  backdrop-filter: blur(22px) saturate(170%) brightness(1.08);
+  /* Bright edges where light would catch a curved pane, brightest on the leading
+     side; then a soft shadow so it reads as lifted off the page. */
+  box-shadow:
+    inset 1px 0 0 rgba(255, 255, 255, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.42),
+    inset -1px 0 0 rgba(255, 255, 255, 0.16),
+    var(--liquid-shadow);
+  transition: border-color 140ms ease;
 }
 .composer:focus-within {
-  border-color: var(--accent);
+  border-color: rgba(77, 125, 250, 0.7);
 }
 .composer input:not([type="checkbox"]) {
   flex: 1;
@@ -195,6 +239,26 @@ progress {
   background: var(--accent-hover);
 }
 .send svg {
+  stroke-width: 2;
+}
+
+/* Back to the grid, pinned to the top left of the page: clear of the sidebar, and below
+   the strip the window is dragged by. */
+.back {
+  position: fixed;
+  z-index: 20;
+  top: 40px;
+  left: calc(var(--sidebar-w) + 20px);
+  width: 34px;
+  height: 34px;
+}
+.back:hover:not(:disabled) {
+  background: var(--liquid-fill); /* keeps the glass; only the rim catches more light */
+  border-color: rgba(255, 255, 255, 0.45);
+}
+.back svg {
+  width: 16px;
+  height: 16px;
   stroke-width: 2;
 }
 
@@ -255,6 +319,17 @@ progress {
   border-radius: 10px;
   box-shadow: 0 12px 32px -12px rgba(0, 0, 0, 0.55);
 }
+/* In the timeline view the image gets a stage of fixed height, so the timeline beneath it
+   stays put as each image loads, whatever its shape. */
+.stage {
+  /* What's left of the window once the page's top padding, the timeline, and the room
+     kept for the search bar are taken out. */
+  height: max(240px, calc(92vh - 400px));
+  align-items: center;
+}
+.stage img {
+  max-height: 100%;
+}
 
 /* Thumbnails are QuickView's "prints": a translucent white border and a soft shadow,
    so a photo has an edge to stop against instead of bleeding into the glass. */
@@ -283,8 +358,8 @@ progress {
   display: block;
   width: auto;
   height: auto;
-  max-width: 200px; /* keeps each image's shape within 200×200 */
-  max-height: 200px;
+  max-width: 100px; /* keeps each image's shape within 200×200 */
+  max-height: 100px;
   border: 3px solid var(--print-edge);
   border-radius: 3px;
   box-shadow: 0 3px 10px -2px rgba(0, 0, 0, 0.45);
@@ -307,6 +382,79 @@ progress {
   color: var(--dim);
 }
 
+/* Timeline ----------------------------------------------------------------- */
+
+/* One row that scrolls sideways: a line across the top with a dot where each day starts,
+   and that day's prints strung out beneath it. */
+.timeline {
+  display: flex;
+  margin: 32px -24px 0; /* runs out to the window's edges, past the page's side padding */
+  padding: 4px 24px 16px; /* the top fits the dots' halo; the bottom keeps the scrollbar off the captions */
+  overflow-x: auto;
+  overscroll-behavior-x: contain; /* a hard flick stops at the end rather than swiping "back" */
+  list-style: none;
+  text-align: left;
+}
+.day {
+  position: relative;
+  flex: none;
+  padding: 24px 40px 0 0; /* the right is the gap before the next day's dot */
+}
+/* The day's stretch of line. Days sit edge to edge, so these join up into one. */
+.day::after {
+  content: "";
+  position: absolute;
+  top: 4px;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--edge);
+}
+/* The last stretch fades out, since history carries on past what's shown. */
+.day:last-child::after {
+  background: linear-gradient(to right, var(--edge), transparent);
+}
+/* The dot where the day starts, sitting on the line. */
+.day::before {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  left: 0;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--dim);
+  box-shadow: 0 0 0 4px var(--pill);
+}
+/* The newest day is "now", so it gets the accent. */
+.day:first-child::before {
+  background: var(--accent);
+  box-shadow: 0 0 0 4px rgba(77, 125, 250, 0.22);
+}
+.day-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 16px;
+  white-space: nowrap;
+}
+.day-head h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 24px;
+}
+.day-meta {
+  font-size: 12px;
+  color: var(--faint);
+}
+.timeline .prints {
+  flex-wrap: nowrap; /* one row; the timeline scrolls instead */
+  justify-content: flex-start;
+  padding: 0;
+}
+
 /* Sidebar ------------------------------------------------------------------ */
 
 /* Sits straight on the glass like QuickView's conversation: no fill of its own. */
@@ -314,7 +462,7 @@ progress {
   position: sticky;
   top: 0;
   height: 100vh;
-  width: 180px;
+  width: var(--sidebar-w);
   flex: none;
   box-sizing: border-box;
   padding: 44px 12px 16px; /* the top clears the window's close/minimise buttons */
