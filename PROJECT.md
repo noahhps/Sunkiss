@@ -3,7 +3,7 @@
 > Git for designers: one shared, cloud-first home for design files, where every save is a
 > version and nothing gets lost.
 
-_Last updated: 2026-09-13_
+_Last updated: 2026-10-01_
 
 ## The idea
 
@@ -21,16 +21,19 @@ The desktop app (Tauri + React) is where you browse, preview, compare and resolv
 | App | Tauri 2 + React + TypeScript (Vite) | Desktop app with a web UI; TypeScript is the design-engineering stack |
 | Server | Node + Hono + TypeScript, in `server/` (npm workspace) | Same language on both sides; shared types later |
 | Storage | Server's local disk first, behind a `BlobStore` interface. S3-compatible storage (MinIO, then Cloudflare R2) later | Switching storage shouldn't touch the routes |
-| Files on clients | None kept, only the browser's temporary cache | The server is the single source of truth |
+| Files on clients | None on disk: files stream in as they're viewed, or are held in memory for the session ("Available this session") | The server is the single source of truth; nothing to sync or clean up |
 | Saving | `POST /files/:name/versions`: commit and push are one step | Each save creates a new version |
 | Conflicts | Save both, mark them as a conflict, a person picks | Timestamps can't decide which edit should win |
 | Live updates | Server-Sent Events | One-way "file changed" messages; plain HTTP |
 | Previews | Smaller copies made with `sharp` | Lists load fast; the full file downloads only when opened |
+| Streaming | HTTP Range requests; in the desktop app, through the app's own `sunkiss://` address, answered in Rust | Video plays and seeks without a full download; Rust is where sign-in will attach later |
+| Files in other apps | The Sunkiss drive: a localhost NFS server inside the app (`nfsserve`), mounted at `~/Sunkiss` | Any app can open the files, nothing is stored on the device, and users install nothing |
 
 ## Open questions
 
 - **Where does editing happen?** Inside Sunkiss, or in Photoshop, Figma and other apps? The
-  second needs a virtual file system (like LucidLink), which is a much bigger project.
+  second needs a virtual file system (like LucidLink). The read-only Sunkiss drive is the
+  first step; see "Streaming files to the device" below.
 - **Who is it for?** Just you, a small team, or a whole company? This decides how much
   account and permission work there is.
 - **What does "compressed" mean for each file type?**
@@ -51,6 +54,89 @@ The desktop app (Tauri + React) is where you browse, preview, compare and resolv
    live updates         ◄── GET /events (SSE) ───   └─ BlobStore: file bytes named by hash
                                                         (disk now, S3 / R2 later)
 ```
+
+In the desktop app the page doesn't call the server itself: it asks for
+`sunkiss://localhost/files/…`, and Rust (`src-tauri/src/lib.rs`) passes the request on.
+
+## Streaming files to the device
+
+Files take no space on the device. They stream in as they're used, inside Sunkiss and in any
+other app through the Sunkiss drive (`~/Sunkiss` in Finder), and "Download" holds a file in
+memory for the session instead of writing it to disk.
+
+```
+ Photoshop · Premiere · Preview · scripts            the Sunkiss window
+        │ read(offset, length)                        │ sunkiss://localhost/files/…
+        ▼                                             ▼
+ macOS NFS client ── ~/Sunkiss               serve_file (lib.rs)
+        │ READ                                        │
+        ▼                                             │
+ drive.rs (nfsserve, on localhost) ─────┐  ┌──────────┘
+                                        ▼  ▼
+                       store.rs: file bytes in memory, in 1 MB blocks
+                          kept files (Download) · recent reads · read-ahead
+                                        │ only what isn't in memory
+                                        ▼
+                    server: GET /files/:name  Range: bytes=…  (206, ETag)
+```
+
+| Layer | What it does | Where |
+|---|---|---|
+| Range requests | `GET /files/:name` answers `Range: bytes=…` with `206 Partial Content`, so a video starts playing, and jumps around, without downloading the whole file. Originals are sent `Cache-Control: no-store`, which keeps them out of the browser's disk cache. Previews carry an `ETag` and get a `304` instead of being resized again. `GET /files` lists each file's ETag too | `server/src/routes/files.ts` |
+| The store | Sunkiss's memory of file bytes, shared by the window and the drive. Files are fetched in 1 MB blocks (reading a few bytes fetches the whole block: that's the read-ahead), and every block is checked to come from the version being read (`ETag`). Recent reads stay up to 128 MB; downloaded files up to 256 MB; least recently used go first | `src-tauri/src/store.rs` |
+| `sunkiss://` | In the desktop app the page asks for `sunkiss://localhost/files/…`, answered from the store. Tauri hands the webview whole bodies, not streams, so each answer is capped at 4 MB; video players simply ask for the next slice | `src-tauri/src/lib.rs` |
+| Session downloads | "Download" asks Rust to keep the whole file in the store; the page mirrors its progress (`session-file` events). The file then opens instantly, in Sunkiss or from the drive, even with the server down. In a plain browser (no Rust) the page keeps a `Blob` instead | `src/sessionCache.ts`, `src/Components/DownloadButton.tsx` |
+| The Sunkiss drive | A read-only NFS server inside the app (`nfsserve`), mounted at `~/Sunkiss` with macOS's own `mount_nfs`: no admin password, nothing for users to install. Unmounted when the app quits; a mount left behind by a crash is cleared on the next launch | `src-tauri/src/drive.rs` |
+| Getting to the drive | On a file's stage: Show in Finder, and "Open in Photoshop" (the app chosen for images or videos in Settings, else the file's default app) with ▾ for any other app. Thumbnails drag out of the window into other apps as the file in the drive. A menu bar item keeps Sunkiss, and the drive, running after the window closes, with Open Sunkiss Folder | `src-tauri/src/finder.rs`, `src/drive.ts`, `src/preferences.ts`, `src/Components/FileActions.tsx` |
+
+Things to know:
+
+- **"0 bytes" is about files, not memory.** What's read lives in RAM (Sunkiss's store, and
+  macOS's own cache of the drive), and like any memory it can be paged out to swap.
+  Measured: reading all ~95 MB of the sample files through the drive, twice, didn't change
+  the Mac's free disk space.
+- **Finder still shows full sizes on the drive.** macOS works disk use out from a file's size,
+  whatever the drive reports, so `du` and Get Info show the size, not zero.
+- **Sunkiss has to be running** for the drive's files to open, because the drive lives inside
+  it. The mount is `soft`, so if Sunkiss goes away, apps get a read error instead of hanging.
+  Keeping Sunkiss alive in the menu bar when its window closes would remove most of this.
+- **Previews are cached on purpose.** Small resized copies are worth keeping; originals never are.
+- **Only reads so far.** Saving into the drive, and `POST …/versions` through `sunkiss://`,
+  come next (see below).
+
+### Next for the drive
+
+1. **A cache policy for video.** RAM-only keeps "0 bytes" literally true, but scrubbing a big
+   video over a real network needs more than 128 MB of recent blocks. An opt-in "Keep on this
+   Mac" disk cache, with a size cap, is the honest trade-off (LucidLink keeps a local cache for
+   the same reason).
+2. **Saves become versions.** Photoshop saves by writing a temporary file and renaming it over
+   the original. The drive holds those writes in memory, treats the rename (plus a moment of
+   quiet) as "save finished", and uploads `POST /files/:name/versions` with `If-Match`;
+   conflicts keep both. Finder's `.DS_Store` and `._*` files get refused.
+3. **Folders**, once the server has them (see the open question above), and maybe a read-only
+   `.versions/` folder showing past versions.
+4. **Sunkiss in Finder's sidebar: built, waiting on signing.** The File Provider extension is
+   in `file-provider/` (Swift, `NSFileProviderReplicatedExtension`, built by
+   `file-provider/build.sh` without Xcode), the packaged app carries it in `Contents/PlugIns`,
+   and `src-tauri/src/file_provider.rs` registers it at launch. Tested by driving the extension
+   directly: it lists the files, tracks changes and downloads byte-identical copies. But macOS
+   only runs a File Provider signed with a real Apple identity (a team ID): signed ad hoc, it's
+   registered yet refused ("The application cannot be used right now"). To finish it: an Apple
+   Developer identity (Xcode, Settings, Accounts), then
+   `SIGN_IDENTITY="Apple Development: …" npm run tauri build` with the same identity in
+   `bundle > macOS > signingIdentity`. Unlike the drive, it keeps opened files on disk until
+   macOS needs the space.
+5. **PSD previews in the window.** PSDs already stream through the drive (macOS opens them from
+   it), but the server doesn't know the type, and `sharp` can't read them, so a "preview" would
+   be the whole file. PSDs saved with Maximize Compatibility (Photoshop's default) carry a
+   flattened image the server could read for previews.
+
+Why NFS and not the alternatives: WebDAV (macOS's built-in client) is slow with Finder and
+copies files to a local cache when they're opened; macFUSE makes every user install a system
+extension; and File Provider, the polished option, means Swift, Xcode and code signing first.
+`nfsserve` was written for exactly this (Hugging Face's `hf-mount` uses it), and it keeps
+everything in Rust.
 
 ## Where things stand
 
@@ -138,13 +224,14 @@ A save creates a blob, if the bytes are new, plus a new row in versions.
 ### 7. Cloud
 - [ ] `S3Store`, tested against MinIO, then Cloudflare R2
 - [ ] Deploy the server with HTTPS and environment-based config
-- [ ] Large files: range requests and resumable uploads
+- [x] Large files: range requests (see "Streaming files to the device")
+- [ ] Resumable uploads
 
 ### Later, maybe
 - Editing inside the app without touching originals (edits saved as a list of steps)
 - Import from Figma (Figma's web API)
 - Access for AI agents (an MCP server)
-- A virtual file system so other apps can edit files directly
+- Saving from other apps straight into the Sunkiss drive (see "Next for the drive")
 
 ## Portfolio angle
 

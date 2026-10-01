@@ -1,6 +1,10 @@
-import { useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
+import { IN_DESKTOP_APP } from "../api";
+import { appsForKind, type App } from "../drive";
+import { chooseApp, useChosenApp, type Kind } from "../preferences";
 
-// Filler settings screen: every control responds, but nothing is saved yet.
+// Settings. "Open files in" is real and applies right away; the rest is still filler: every
+// control responds, but nothing is saved yet.
 export default function Settings() {
   const [displayName, setDisplayName] = useState("");
   const [theme, setTheme] = useState("system");
@@ -22,6 +26,17 @@ export default function Settings() {
           setSaved(true);
         }}
       >
+        <fieldset style={styles.section}>
+          <legend style={styles.legend}>Open files in</legend>
+          <OpenWith kind="image" label="Images" />
+          <OpenWith kind="video" label="Videos" />
+          <p style={styles.muted}>
+            {IN_DESKTOP_APP
+              ? "What “Open in” on a file uses. Changes apply right away."
+              : "Only in the desktop app, which can see the apps on this Mac."}
+          </p>
+        </fieldset>
+
         <fieldset style={styles.section}>
           <legend style={styles.legend}>General</legend>
           <label style={styles.field}>
@@ -86,6 +101,40 @@ export default function Settings() {
         )}
       </form>
     </main>
+  );
+}
+
+// One kind of file's app: its default, or any app on this Mac that can open that kind.
+function OpenWith({ kind, label }: { kind: Kind; label: string }) {
+  const chosen = useChosenApp(kind);
+  const [apps, setApps] = useState<App[]>([]);
+
+  useEffect(() => {
+    if (IN_DESKTOP_APP) appsForKind(kind).then(setApps, () => setApps([]));
+  }, [kind]);
+
+  const defaultApp = apps.find((app) => app.default);
+  // A chosen app that's since been uninstalled still shows, so it's clear what's set.
+  const choices = chosen && !apps.some((app) => app.path === chosen.path) ? [...apps, chosen] : apps;
+
+  return (
+    <label style={styles.field}>
+      {label}
+      <select
+        value={chosen?.path ?? ""}
+        disabled={!IN_DESKTOP_APP}
+        onChange={(e) => chooseApp(kind, choices.find((app) => app.path === e.currentTarget.value) ?? null)}
+      >
+        <option value="">{defaultApp ? `Default app (${defaultApp.name})` : "Default app"}</option>
+        {choices
+          .filter((app) => !app.default)
+          .map((app) => (
+            <option key={app.path} value={app.path}>
+              {app.name}
+            </option>
+          ))}
+      </select>
+    </label>
   );
 }
 

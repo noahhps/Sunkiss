@@ -1,16 +1,15 @@
 import { useState } from "react";
-import { fileUrl, type FileEntry } from "../api";
+import { isVideo, type FileEntry } from "../api";
 import { useFiles } from "../hooks/useFiles";
-import { useStream } from "../hooks/useStream";
+import FileActions from "./FileActions";
 import Print from "./Print";
 import SearchBox from "./SearchBox";
+import Stage from "./Stage";
 import Timeline from "./Timeline";
 
-const kb = (bytes: number) => `${Math.round(bytes / 1024).toLocaleString()} KB`;
-
-// Home: a grid of every image in the server's folder, newest first. Clicking one (or
-// pressing Enter in the search box) opens it: a preview streams in with the rest on a
-// timeline beneath it, and a back button returns to the grid. Typing narrows either view
+// Home: a grid of every image and video in the server's folder, newest first. Clicking one
+// (or pressing Enter in the search box) opens it: it streams onto the stage with the rest on
+// a timeline beneath it, and a back button returns to the grid. Typing narrows either view
 // to names containing what's typed.
 export default function Home() {
   const { files, error, loading } = useFiles();
@@ -18,13 +17,11 @@ export default function Home() {
   const [selected, setSelected] = useState<FileEntry | null>(null); // null shows the grid
 
   // Newest first, so both views start with what changed most recently.
-  const images = files
-    .filter((file) => file.type.startsWith("image/"))
+  const media = files
+    .filter((file) => file.type.startsWith("image/") || isVideo(file))
     .sort((a, b) => Date.parse(b.modified) - Date.parse(a.modified));
   const typed = query.trim().toLowerCase();
-  const visible = typed ? images.filter((file) => file.name.toLowerCase().includes(typed)) : images;
-  // Within 800×800, so a tall photo isn't streamed at 800 wide and over 1000 tall.
-  const preview = useStream(selected ? fileUrl(selected, 800, 800) : null);
+  const visible = typed ? media.filter((file) => file.name.toLowerCase().includes(typed)) : media;
 
   return (
     <main className="container">
@@ -44,14 +41,14 @@ export default function Home() {
 
       {loading && <p className="waiting">Loading files…</p>}
       {error && <p className="error">{error}</p>}
-      {typed && images.length > 0 && visible.length === 0 && <p className="note">No images match “{query.trim()}”</p>}
+      {typed && media.length > 0 && visible.length === 0 && <p className="note">Nothing matches “{query.trim()}”</p>}
 
       {selected ? (
         <>
           <button
             type="button"
             className="round back"
-            aria-label="Back to all images"
+            aria-label="Back to all files"
             title="Back"
             onClick={() => setSelected(null)}
           >
@@ -60,15 +57,8 @@ export default function Home() {
             </svg>
           </button>
 
-          <section className="preview stage">
-            {preview.status === "loading" && (
-              <p className="waiting">
-                Streaming {selected.name}… {kb(preview.received)}
-              </p>
-            )}
-            {preview.status === "done" && <img className="fade-in" src={preview.src} alt={selected.name} />}
-            {preview.status === "error" && <p className="error">{preview.message}</p>}
-          </section>
+          <FileActions file={selected} />
+          <Stage file={selected} />
 
           <Timeline files={visible} selected={selected} onSelect={setSelected} />
         </>

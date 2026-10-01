@@ -14,7 +14,10 @@ export function useFiles() {
         if (!cancelled) setFiles(list);
       })
       .catch((err) => {
-        if (!cancelled) setError(err instanceof TypeError ? "Couldn't reach the server" : String(err));
+        if (!cancelled) {
+          // err.message, not String(err), which would start "Error: ".
+          setError(err instanceof TypeError ? "Couldn't reach the server" : err instanceof Error ? err.message : String(err));
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false);

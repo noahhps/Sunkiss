@@ -36,8 +36,8 @@ const fullDate = (date: Date) =>
     year: date.getFullYear() === new Date().getFullYear() ? undefined : "numeric",
   });
 
-// The images as a timeline that scrolls sideways: a line across the top with a dot where
-// each day starts, and that day's images in a row beneath it. `files` must already be
+// The files as a timeline that scrolls sideways: a line across the top with a dot where
+// each day starts, and that day's files in a row beneath it. `files` must already be
 // sorted newest first; the newest sit at the left.
 export default function Timeline({
   files,
@@ -51,7 +51,7 @@ export default function Timeline({
   const list = useRef<HTMLOListElement>(null);
   const opening = useRef(true);
 
-  // Bring the chosen image to the middle of the strip: straight there when the timeline
+  // Bring the chosen file to the middle of the strip: straight there when the timeline
   // opens, gliding when you pick another from it.
   useEffect(() => {
     list.current?.querySelector('[aria-pressed="true"]')?.scrollIntoView({
@@ -74,7 +74,7 @@ export default function Timeline({
               <h2>{relative ?? fullDate(day.date)}</h2>
               <span className="day-meta">
                 {relative && `${fullDate(day.date)} · `}
-                {day.files.length} {day.files.length === 1 ? "image" : "images"}
+                {day.files.length} {day.files.length === 1 ? "item" : "items"}
               </span>
             </header>
             <div className="prints">

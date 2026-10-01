@@ -19,13 +19,41 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 # macos-private-api: needed for a transparent window on macOS (the frosted glass look).
-tauri = { version = "2", features = ["macos-private-api"] }
+# tray-icon: the Sunkiss menu bar item, which keeps the app (and the drive) running after
+# its window closes.
+tauri = { version = "2", features = ["macos-private-api", "tray-icon"] }
 tauri-plugin-opener = "2"
 # The frosted glass behind the window. CSS can only blur things inside the page;
 # blurring the desktop behind the window is a native material, as in Courier.
 window-vibrancy = "0.6"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+# Fetches file bytes from the server for the page's sunkiss:// address (src/lib.rs).
+# No TLS yet, because the server is plain http://localhost; add features = ["rustls"]
+# once it moves to https.
+reqwest = { version = "0.13", default-features = false }
+bytes = "1"
+# The Sunkiss drive (src/drive.rs): a small NFS server inside the app that macOS mounts
+# at ~/Sunkiss, so other apps can open the server's files without copies on disk.
+nfsserve = "0.11"
+async-trait = "0.1"
+# The in-memory cache of file blocks (src/store.rs), least recently used first out.
+lru = "0.18"
+percent-encoding = "2"
+chrono = "0.4"
+tokio = { version = "1", features = ["sync", "rt", "net", "macros", "signal"] }
+# Dragging a thumbnail out of the window into another app, as a file in the drive.
+tauri-plugin-drag = "2.1"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+# Asking macOS which apps can open a file, or a kind of file ("Open in…", src/finder.rs).
+objc2-app-kit = { version = "0.3", features = ["objc2-uniform-type-identifiers"] }
+objc2-foundation = "0.3"
+objc2-uniform-type-identifiers = "0.3"
+# Registering the File Provider extension, for Sunkiss in Finder's sidebar (src/file_provider.rs).
+objc2 = "0.6"
+block2 = "0.6"
+objc2-file-provider = { version = "0.3", features = ["Extension", "NSFileProviderDomain", "block2"] }
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration

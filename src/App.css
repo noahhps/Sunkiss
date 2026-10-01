@@ -29,6 +29,8 @@
     rgba(255, 255, 255, 0.09) 100%
   );
   --liquid-shadow: 0 18px 40px -14px rgba(0, 0, 0, 0.55);
+  /* Menus need to be read over anything, so their glass is mostly opaque. */
+  --menu-fill: rgba(38, 41, 48, 0.86);
 
   font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
   font-size: 16px;
@@ -62,6 +64,7 @@
       rgba(255, 255, 255, 0.5) 100%
     );
     --liquid-shadow: 0 18px 40px -16px rgba(20, 23, 29, 0.3);
+    --menu-fill: rgba(250, 250, 252, 0.88);
   }
 }
 
@@ -177,9 +180,10 @@ progress {
   align-items: center;
   gap: 8px;
 }
-/* The liquid glass, shared by the search bar and the back button. */
+/* The liquid glass, shared by the search bar and the buttons that float over the page. */
 .composer,
-.back {
+.back,
+.pill {
   border: 1px solid rgba(255, 255, 255, 0.22);
   border-radius: 999px;
   background: var(--liquid-fill);
@@ -252,7 +256,8 @@ progress {
   width: 34px;
   height: 34px;
 }
-.back:hover:not(:disabled) {
+.back:hover:not(:disabled),
+.pill:hover:not(:disabled) {
   background: var(--liquid-fill); /* keeps the glass; only the rim catches more light */
   border-color: rgba(255, 255, 255, 0.45);
 }
@@ -260,6 +265,157 @@ progress {
   width: 16px;
   height: 16px;
   stroke-width: 2;
+}
+
+/* The file's actions, top right, opposite the back button: Show in Finder, Open in…, and
+   Download (the whole file onto this device for the session). */
+.file-actions {
+  position: fixed;
+  z-index: 20;
+  top: 40px;
+  right: 20px;
+  display: flex;
+  gap: 8px;
+}
+/* A glass pill with an icon and a label. */
+.pill {
+  height: 34px;
+  box-sizing: border-box;
+  padding: 0 14px 0 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+.pill svg,
+.badge svg {
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.pill svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 2;
+}
+/* "Open in Photoshop" and its arrow: one pill in two parts. */
+.split {
+  display: flex;
+}
+.split > .pill:first-child {
+  border-radius: 999px 0 0 999px;
+  padding-right: 11px;
+}
+.split > .more {
+  margin-left: -1px; /* the two halves share a border */
+  padding: 0 9px;
+  border-radius: 0 999px 999px 0;
+}
+.split > .more svg {
+  width: 11px;
+  height: 11px;
+  color: var(--dim);
+}
+.split .label {
+  max-width: 170px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* In a narrow window, Show in Finder and Open in… keep only their icons (hovering says
+   what they do). */
+@media (max-width: 760px) {
+  .pill .label {
+    display: none;
+  }
+  .pill:has(.label) {
+    padding: 0 10px;
+  }
+}
+.download {
+  font-variant-numeric: tabular-nums; /* the numbers don't jitter as they count up */
+}
+.download .size {
+  color: var(--faint);
+}
+/* Fills with the accent from the left as the bytes arrive. */
+.download[data-status="downloading"],
+.download[data-status="downloading"]:hover:not(:disabled) {
+  background:
+    linear-gradient(90deg, rgba(77, 125, 250, 0.38) var(--progress), transparent 0),
+    var(--liquid-fill);
+}
+.download[data-status="kept"] .at-rest {
+  color: var(--accent);
+}
+/* Hovering the check turns it into a cross: clicking removes the file from the session. */
+.download .on-hover,
+.download:hover .at-rest {
+  display: none;
+}
+.download:hover .on-hover {
+  display: block;
+}
+.download[data-status="failed"] {
+  color: var(--warn);
+}
+
+/* "Open in…": the apps that can open the file, in a menu under the button. Highlighted the
+   way macOS menus are, in the accent colour. */
+.open-in {
+  position: relative;
+}
+.menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 210px;
+  max-height: 50vh;
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: 5px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 12px;
+  background: var(--menu-fill);
+  -webkit-backdrop-filter: blur(22px) saturate(170%);
+  backdrop-filter: blur(22px) saturate(170%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), var(--liquid-shadow);
+}
+.menu button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 7px;
+  background: none;
+  font-size: 13px;
+  text-align: left;
+}
+.menu button:hover:not(:disabled),
+.menu button:focus-visible {
+  background: var(--accent);
+  color: #fff;
+  outline: none;
+}
+.menu .tag {
+  font-size: 11px;
+  color: var(--faint);
+}
+.menu button:hover .tag,
+.menu button:focus-visible .tag {
+  color: rgba(255, 255, 255, 0.75);
+}
+.menu-note {
+  margin: 6px 10px;
+  font-size: 12px;
+  color: var(--dim);
 }
 
 .option {
@@ -302,8 +458,16 @@ progress {
 
 @media (prefers-reduced-motion: reduce) {
   .waiting,
-  .fade-in {
+  .fade-in,
+  .badge,
+  .upload,
+  .strip {
     animation: none;
+  }
+  .dropzone,
+  .strip,
+  .tilt-card {
+    transition: none;
   }
 }
 
@@ -314,21 +478,57 @@ progress {
   justify-content: center;
   margin-top: 24px;
 }
-.preview img {
+.preview :is(img, video) {
   max-width: min(100%, 800px);
   border-radius: 10px;
   box-shadow: 0 12px 32px -12px rgba(0, 0, 0, 0.55);
 }
-/* In the timeline view the image gets a stage of fixed height, so the timeline beneath it
-   stays put as each image loads, whatever its shape. */
+/* In the timeline view the file gets a stage of fixed height, so the timeline beneath it
+   stays put as each one loads, whatever its shape. */
 .stage {
   /* What's left of the window once the page's top padding, the timeline, and the room
      kept for the search bar are taken out. */
-  height: max(240px, calc(92vh - 400px));
+  --stage-height: max(240px, calc(92vh - 400px));
+  height: var(--stage-height);
   align-items: center;
 }
-.stage img {
-  max-height: 100%;
+.stage :is(img, video) {
+  max-height: var(--stage-height);
+}
+
+/* The tilt on a focused image (Tilt.tsx). The card leans by --rx and --ry; the sheen puts
+   light where the pointer is (--x, --y) and shade in the opposite corner. */
+.tilt {
+  perspective: 800px;
+  display: flex;
+}
+.tilt-card {
+  position: relative;
+  display: flex;
+  border-radius: 10px;
+  box-shadow: 0 12px 32px -12px rgba(0, 0, 0, 0.55);
+  transform: translateZ(0) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  /* Springing back flat when the pointer leaves… */
+  transition: transform 650ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+/* …and close behind the pointer while it's there, sunk a little into the screen. */
+.tilt-card[data-tilting] {
+  transform: translateZ(-14px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  transition: transform 120ms ease-out;
+}
+.tilt-card img {
+  display: block;
+  max-width: min(calc(100vw - var(--sidebar-w) - 96px), 800px);
+  box-shadow: none; /* the card has it */
+}
+.tilt-sheen {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    radial-gradient(42% 34% at calc(100% - var(--x, 50%)) calc(100% - var(--y, 50%)), rgba(9, 14, 28, var(--dark, 0)), transparent),
+    radial-gradient(52% 42% at var(--x, 50%) var(--y, 50%), rgba(255, 255, 255, var(--light, 0)), transparent);
 }
 
 /* Thumbnails are QuickView's "prints": a translucent white border and a soft shadow,
@@ -354,7 +554,13 @@ progress {
 .print:hover:not(:disabled) {
   background: none;
 }
-.print img {
+/* Holds the picture and anything pinned to its corners, and lifts them together on hover. */
+.frame {
+  position: relative;
+  display: block;
+  transition: transform 140ms ease;
+}
+.print :is(img, video) {
   display: block;
   width: auto;
   height: auto;
@@ -364,13 +570,48 @@ progress {
   border-radius: 3px;
   box-shadow: 0 3px 10px -2px rgba(0, 0, 0, 0.45);
   background: var(--pill);
-  transition: transform 140ms ease, border-color 140ms ease;
+  transition: border-color 140ms ease;
 }
-.print:hover img {
+.print:hover .frame {
   transform: translateY(-2px);
 }
-.print[aria-pressed="true"] img {
+.print[aria-pressed="true"] :is(img, video) {
   border-color: var(--accent);
+}
+/* In the top corner: the file is on this device for the session (or on its way). */
+.badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 16px;
+  height: 16px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+.badge svg {
+  width: 10px;
+  height: 10px;
+  stroke-width: 3;
+}
+.badge[data-status="downloading"] {
+  animation: breathe 1.4s ease-in-out infinite;
+}
+/* A video's length in the bottom corner, as in Photos: tells it apart from a still. */
+.duration {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  padding: 0 4px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 9.5px;
+  line-height: 14px;
+  font-variant-numeric: tabular-nums;
 }
 .caption {
   max-width: 200px;
@@ -453,6 +694,252 @@ progress {
   flex-wrap: nowrap; /* one row; the timeline scrolls instead */
   justify-content: flex-start;
   padding: 0;
+}
+
+/* Upload ------------------------------------------------------------------- */
+
+.upload-screen > :not(h1) {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 600px;
+  align-self: center;
+}
+
+/* Where files are dropped: it leans in toward a file being dragged over it. */
+.dropzone {
+  padding: 34px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  border: 1.5px dashed var(--edge);
+  border-radius: var(--radius);
+  background: var(--pill);
+  cursor: pointer;
+  transition:
+    transform 420ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    border-color 140ms ease,
+    background 140ms ease;
+}
+.dropzone:hover,
+.dropzone:focus-visible {
+  border-color: var(--dim);
+  outline: none;
+}
+.dropzone[data-over] {
+  transform: scale(1.025);
+  border-color: var(--accent);
+  background: rgba(77, 125, 250, 0.12);
+}
+.drop-icon {
+  width: 34px;
+  height: 34px;
+  margin-bottom: 6px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--edge);
+  border-radius: 10px;
+  background: var(--glass-strong);
+}
+.drop-icon svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.dropzone strong {
+  font-size: 14px;
+  font-weight: 600;
+}
+.dropzone .hint {
+  font-size: 12px;
+  color: var(--faint);
+}
+
+/* One row per file, springing in as it's added. */
+.uploads {
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: left;
+}
+.upload {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 10px 10px 14px;
+  border: 1px solid var(--edge);
+  border-radius: 12px;
+  background: var(--pill);
+  animation: spring-in 520ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@keyframes spring-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+  }
+}
+.upload-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.upload-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 500;
+}
+.upload-meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  color: var(--dim);
+  font-variant-numeric: tabular-nums;
+}
+.upload-meta svg {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: #2f9e5b;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.upload:is([data-status="exists"], [data-status="failed"]) .upload-meta {
+  color: var(--warn);
+}
+.upload-progress {
+  height: 3px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--edge);
+}
+.upload-progress > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width 120ms linear;
+}
+.upload-actions {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.upload-actions button:not(.round) {
+  padding: 4px 11px;
+  font-size: 12px;
+}
+.upload-actions .round {
+  width: 24px;
+  height: 24px;
+}
+
+/* A file icon, with its type on a coloured tag over the corner. */
+.glyph {
+  position: relative;
+  flex: none;
+  width: 28px;
+  height: 34px;
+}
+.glyph svg {
+  width: 28px;
+  height: 34px;
+  fill: rgba(255, 255, 255, 0.92);
+  stroke: rgba(20, 23, 29, 0.16);
+}
+.glyph .fold {
+  fill: rgba(20, 23, 29, 0.08);
+}
+.glyph-badge {
+  position: absolute;
+  left: -5px;
+  bottom: 6px;
+  padding: 0 4px;
+  border-radius: 4px;
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 13px;
+  letter-spacing: 0.02em;
+  color: #fff;
+}
+
+.upload-footer {
+  margin-top: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.kiss {
+  padding: 0.55em 1.5em;
+  font-weight: 600;
+}
+
+/* The uploaded images, as a band of strips (Carousel.tsx): the one under the pointer opens
+   up, its neighbours a little, springing as they go. Lower than bencho.dev's, so more fits. */
+.carousel-wrap {
+  margin-top: 36px;
+}
+.carousel {
+  display: flex;
+  height: 150px;
+  overflow: hidden;
+  border-radius: 14px;
+  box-shadow: 0 12px 32px -14px rgba(0, 0, 0, 0.55);
+}
+.strip {
+  position: relative;
+  min-width: 0;
+  margin: 0;
+  flex-basis: 0;
+  overflow: hidden;
+  transition: flex-grow 560ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation: strip-in 640ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+/* A new image opens in from nothing. */
+@keyframes strip-in {
+  from {
+    flex-grow: 0;
+  }
+}
+.strip img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.strip figcaption {
+  position: absolute;
+  inset: auto 0 0;
+  padding: 18px 10px 7px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  text-align: left;
+  color: #fff;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.55));
+  opacity: 0;
+  transition: opacity 200ms ease;
+}
+.strip[data-open] figcaption {
+  opacity: 1;
+}
+.carousel-wrap .note {
+  margin: 8px 0 0;
+  text-align: left;
 }
 
 /* Sidebar ------------------------------------------------------------------ */

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { SERVER } from "../api";
+import { FILES } from "../api";
 import { useStream } from "../hooks/useStream";
 import SearchBox from "./SearchBox";
 
@@ -10,7 +10,7 @@ export default function Stream() {
   const [search, setSearch] = useState(""); // the name last submitted
   const [fullSize, setFullSize] = useState(false); // the whole file, or a resized preview
 
-  const url = search ? `${SERVER}/files/${encodeURIComponent(search)}${fullSize ? "" : "?w=800"}` : null;
+  const url = search ? `${FILES}/${encodeURIComponent(search)}${fullSize ? "" : "?w=800"}` : null;
   const stream = useStream(url);
 
   return (

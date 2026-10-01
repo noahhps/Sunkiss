@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { failureMessage } from "../api";
 
 export type StreamState =
   | { status: "idle" }
@@ -23,7 +24,7 @@ export function useStream(url: string | null): StreamState {
       try {
         const res = await fetch(url, { signal: controller.signal });
         if (!res.ok || !res.body) {
-          setState({ status: "error", notFound: res.status === 404, message: `The server answered ${res.status}` });
+          setState({ status: "error", notFound: res.status === 404, message: failureMessage(res) });
           return;
         }
         const type = res.headers.get("Content-Type") ?? "application/octet-stream";

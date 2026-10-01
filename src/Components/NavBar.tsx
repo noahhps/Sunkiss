@@ -1,7 +1,8 @@
-export type Screen = "home" | "stream" | "settings";
+export type Screen = "home" | "upload" | "stream" | "settings";
 
 const LINKS: { screen: Screen; label: string }[] = [
   { screen: "home", label: "Home" },
+  { screen: "upload", label: "Upload" },
   { screen: "stream", label: "Stream" },
   { screen: "settings", label: "Settings" },
 ];
