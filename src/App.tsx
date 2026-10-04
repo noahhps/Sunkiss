@@ -27,14 +27,13 @@ function App() {
   }, []);
 
   return (
-    <div style={{ display: "flex" }}>
+    <div className="app">
       {/* The window has no visible title bar, so this invisible strip is what you drag it by. */}
       <div className="titlebar" data-tauri-drag-region />
       <NavBar current={screen} onNavigate={setScreen} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <Current />
       </div>
-
     </div>
   );
 }

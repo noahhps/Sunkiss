@@ -133,7 +133,16 @@ export default function VersionTree({
               >
                 <Thumb file={file} version={version} />
                 <span className="version-text">
-                  <span className="version-when">{version.current ? "Current" : formatWhen(version.modified)}</span>
+                  <span className="version-when">
+                    {version.current ? (
+                      <>
+                        <Icon name="sun" className="sun-mark" />
+                        Current
+                      </>
+                    ) : (
+                      formatWhen(version.modified)
+                    )}
+                  </span>
                   <span className="version-meta">
                     {version.current && `${formatWhen(version.modified)} · `}
                     {formatSize(version.size)}

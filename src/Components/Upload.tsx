@@ -21,10 +21,10 @@ const BADGES: Record<string, string> = {
   svg: "#8e4ec6",
   psd: "#1473e6",
   pdf: "#e5484d",
-  mov: "#4d7dfa",
-  mp4: "#4d7dfa",
-  m4v: "#4d7dfa",
-  webm: "#4d7dfa",
+  mov: "#008cff",
+  mp4: "#008cff",
+  m4v: "#008cff",
+  webm: "#008cff",
 };
 
 // Upload: drop files in (or click to choose them), and "Kiss it in" sends them to Sunkiss.

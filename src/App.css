@@ -1,9 +1,16 @@
-/* Sunkiss's look, started from Courier's QuickView: text sitting straight on the window's
-   frosted glass, and one accent colour. Shapes are solid: controls, rows and panels are
-   fills rather than outlines, and icons are filled shapes or bold marks (Icon.tsx).
-   The glass itself is a native macOS material (src-tauri/src/lib.rs); this sheet only
-   draws what's on top of it. The font is Sunkiss's own, not QuickView's DM Mono: Inter,
-   bundled with the app (src/main.tsx). */
+/* Sunkiss's look: the logo's three colours, each with a job. The logo is a white sun over an
+   orange ground on a blue sky. Blue is for what you can do: buttons, focus, the badge on a
+   file, and the sidebar stands on it. Orange is for what's chosen: the print that's open, the
+   version on the stage, the seal by the page you're on, and "Kiss it in". White is the
+   surfaces: the search bar, the pinned buttons, the panels, the frame round a print. The
+   desktop app's window is frosted glass, so the colour lives in those shapes rather than in
+   the page behind them, and the fills are strong enough to read over whatever is behind the
+   window. Headings are set in Mincho, the serif of Japanese and Chinese print, which every
+   Mac has; the text is Inter, bundled with the app (src/main.tsx).
+   The bones are Courier's QuickView: text sitting straight on the window's frosted glass,
+   and solid shapes: controls, rows and panels are fills rather than outlines, and icons are
+   filled shapes or bold marks (Icon.tsx). The glass itself is a native macOS material
+   (src-tauri/src/lib.rs); this sheet only draws what's on top of it. */
 
 :root {
   /* Dark first, as in QuickView; the light versions are below. */
@@ -12,16 +19,33 @@
   --faint: rgba(244, 246, 250, 0.4);
   /* Fills for solid shapes: --pill for controls and rows, stronger on hover, strongest for
      what's selected. --edge is only for lines that aren't the edge of a shape. */
-  --pill: rgba(255, 255, 255, 0.14);
-  --pill-hover: rgba(255, 255, 255, 0.22);
-  --pill-strong: rgba(255, 255, 255, 0.3);
-  --edge: rgba(255, 255, 255, 0.18);
-  --accent: #4d7dfa;
-  --accent-hover: #5d89ff;
+  --pill: rgba(255, 255, 255, 0.17);
+  --pill-hover: rgba(255, 255, 255, 0.25);
+  --pill-strong: rgba(255, 255, 255, 0.33);
+  --edge: rgba(255, 255, 255, 0.2);
+  /* The logo's colours. The sky is the accent, for what you can do. */
+  --sky: #008cff;
+  --accent: #1a95ff; /* the sky, a touch brighter, so it carries on dark glass */
+  --accent-hover: #3aa5ff;
+  --halo: rgba(0, 140, 255, 0.38); /* the ring around what has focus */
+  /* The orange ground, for what's chosen. */
+  --sun: #ff6744;
+  --sun-hover: #ff7d5e;
+  --sun-fill: rgba(255, 103, 68, 0.22); /* orange, washed over a surface */
+  /* White panels: the history, the drop zone. */
+  --panel: rgba(255, 255, 255, 0.1);
+  --panel-hover: rgba(255, 255, 255, 0.16);
+  /* Headings: the Mincho faces that come with macOS, then any serif. */
+  --display: "Hiragino Mincho ProN", "Songti SC", "Noto Serif CJK JP", "Noto Serif", Georgia, serif;
   --print-edge: rgba(255, 255, 255, 0.42); /* the white border around a thumbnail */
   --warn: #ffd9a8;
   --radius: 18px;
-  --ground: #262a31; /* only used outside the desktop app, where there's no glass */
+  --ground: #1a2130; /* a night sky; only used outside the desktop app, where there's no glass */
+  /* A wash over the page, laid out like the logo: sky above, the orange ground below. Faint,
+     and fainter still over the desktop app's glass: the colour is in the shapes, not here. */
+  --wash:
+    radial-gradient(90% 60% at 100% 0%, rgba(0, 140, 255, 0.24), transparent 60%),
+    radial-gradient(80% 55% at 0% 100%, rgba(255, 103, 68, 0.18), transparent 65%);
   --sidebar-w: 180px;
   /* The open file's stage: what's left of the window once the page's top padding, the
      timeline, and the room kept for the search bar are taken out. Its history is as tall. */
@@ -29,11 +53,13 @@
 
   /* What floats over the page (the search bar, the buttons pinned along the top): solid
      too, lifted off the page by its shadow, with the page blurred behind it. */
-  --float: rgba(255, 255, 255, 0.17);
-  --float-hover: rgba(255, 255, 255, 0.25);
+  --float: rgba(255, 255, 255, 0.21);
+  --float-hover: rgba(255, 255, 255, 0.3);
   --float-shadow: 0 18px 40px -14px rgba(0, 0, 0, 0.55);
-  /* The sidebar's panel, a shade darker than the page. */
-  --sidebar-fill: rgba(0, 0, 0, 0.16);
+  /* The sidebar is a solid panel, dark here and white on a pale page, with a hairline where it
+     meets the page. */
+  --sidebar-fill: #1b2130;
+  --sidebar-edge: rgba(255, 255, 255, 0.08);
   /* Menus need to be read over anything, so their glass is mostly opaque. */
   --menu-fill: rgba(38, 41, 48, 0.86);
 
@@ -59,14 +85,25 @@
     --pill-hover: rgba(20, 23, 29, 0.12);
     --pill-strong: rgba(20, 23, 29, 0.16);
     --edge: rgba(20, 23, 29, 0.1);
+    --accent: var(--sky); /* the logo's own blue reads well on a pale page */
+    --accent-hover: #1f98ff;
+    --sun-fill: rgba(255, 103, 68, 0.2);
+    /* On a pale page, panels are white, set off by a touch of shade. */
+    --panel: rgba(255, 255, 255, 0.75);
+    --panel-hover: rgba(255, 255, 255, 0.95);
+    --print-edge: rgba(255, 255, 255, 0.95);
     --warn: #8a5a12;
-    --ground: #eceef2;
+    --ground: #f3f6fa; /* white, with a breath of sky */
+    --wash:
+      radial-gradient(90% 60% at 100% 0%, rgba(0, 140, 255, 0.18), transparent 60%),
+      radial-gradient(80% 55% at 0% 100%, rgba(255, 103, 68, 0.16), transparent 65%);
     /* On a pale page, what floats is white. */
-    --float: rgba(255, 255, 255, 0.86);
-    --float-hover: rgba(255, 255, 255, 0.97);
-    --float-shadow: 0 18px 40px -16px rgba(20, 23, 29, 0.3);
-    --sidebar-fill: rgba(20, 23, 29, 0.045);
-    --menu-fill: rgba(250, 250, 252, 0.88);
+    --float: rgba(255, 255, 255, 0.9);
+    --float-hover: rgba(255, 255, 255, 1);
+    --float-shadow: 0 18px 40px -16px rgba(20, 23, 29, 0.28);
+    --sidebar-fill: #fff;
+    --sidebar-edge: rgba(20, 23, 29, 0.08);
+    --menu-fill: rgba(250, 251, 253, 0.92);
   }
 }
 
@@ -80,6 +117,19 @@ body {
 /* A plain browser has no glass behind the page, so the text gets a ground to sit on. */
 html:not([data-shell="tauri"]) body {
   background: var(--ground);
+}
+/* The logo's colours washed over the page, under everything. Over the desktop app's glass
+   it's fainter still, so the glass reads. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background: var(--wash);
+  pointer-events: none;
+}
+html[data-shell="tauri"] body::before {
+  opacity: 0.55;
 }
 
 /* The window's title bar is invisible; this strip along the top is what you drag it by. */
@@ -109,11 +159,30 @@ html:not([data-shell="tauri"]) body {
   justify-content: center;
 }
 
+/* The page: the sidebar and the screen, over the wash. */
+.app {
+  position: relative;
+  z-index: 1;
+  display: flex;
+}
+
+/* Headings in Mincho, with a short rule beneath: the logo's orange into its blue. */
 h1 {
-  margin: 0 0 20px;
-  font-size: 27px;
+  margin: 0 0 22px;
+  font-family: var(--display);
+  font-size: 30px;
   font-weight: 500;
   line-height: 1.2;
+  letter-spacing: 0.01em;
+}
+h1::after {
+  content: "";
+  display: block;
+  width: 36px;
+  height: 3px;
+  margin: 10px auto 0;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--sun), var(--accent));
 }
 
 a {
@@ -159,7 +228,7 @@ select {
 input:not([type="checkbox"]):focus,
 select:focus {
   background: var(--pill-hover);
-  box-shadow: 0 0 0 3px rgba(77, 125, 250, 0.35);
+  box-shadow: 0 0 0 3px var(--halo);
 }
 input::placeholder {
   color: var(--faint);
@@ -215,7 +284,7 @@ svg[data-paint="glyph"] {
   transition: background 140ms ease, box-shadow 140ms ease;
 }
 .composer:focus-within {
-  box-shadow: 0 0 0 3px rgba(77, 125, 250, 0.35), var(--float-shadow);
+  box-shadow: 0 0 0 3px var(--halo), var(--float-shadow);
 }
 .composer input:not([type="checkbox"]) {
   flex: 1;
@@ -364,7 +433,7 @@ svg[data-paint="glyph"] {
 .download[data-status="downloading"],
 .download[data-status="downloading"]:hover:not(:disabled) {
   background:
-    linear-gradient(90deg, rgba(77, 125, 250, 0.38) var(--progress), transparent 0),
+    linear-gradient(90deg, rgba(0, 140, 255, 0.4) var(--progress), transparent 0),
     var(--float);
 }
 .download[data-status="kept"] .at-rest {
@@ -484,6 +553,7 @@ svg[data-paint="glyph"] {
     animation: none;
   }
   .dropzone,
+  .drop-icon,
   .strip,
   .tilt-card {
     transition: none;
@@ -614,8 +684,9 @@ svg[data-paint="glyph"] {
 .print:hover .frame {
   transform: translateY(-2px);
 }
+/* The print that's open: orange, for what's chosen. */
 .print[aria-pressed="true"] :is(img, video) {
-  border-color: var(--accent);
+  border-color: var(--sun);
 }
 /* In the top corner: the file is on this device for the session (or on its way). */
 .badge {
@@ -710,13 +781,15 @@ svg[data-paint="glyph"] {
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
+  padding: 10px 6px 8px;
   border-radius: 14px;
+  background: var(--panel);
   text-align: left;
   transition: background 140ms ease;
 }
-/* A file being dragged over, to go in as the next version: the history fills with the accent. */
+/* A file being dragged over, to go in as the next version: the history fills with orange. */
 .versions[data-over] {
-  background: rgba(77, 125, 250, 0.16);
+  background: var(--sun-fill);
 }
 .versions-head {
   display: flex;
@@ -767,7 +840,7 @@ svg[data-paint="glyph"] {
   background: var(--pill);
 }
 .version[aria-current] {
-  background: var(--pill-strong);
+  background: var(--sun-fill);
 }
 .version-thumb {
   flex: none;
@@ -792,7 +865,13 @@ svg[data-paint="glyph"] {
   font-weight: 500;
 }
 .version[data-current] .version-when {
-  color: var(--accent);
+  color: var(--sun);
+}
+.sun-mark {
+  width: 11px;
+  height: 11px;
+  margin-right: 4px;
+  vertical-align: -1px;
 }
 .version-meta {
   font-size: 11px;
@@ -817,7 +896,7 @@ svg[data-paint="glyph"] {
   gap: 7px;
   padding: 7px 10px;
   border-radius: 10px;
-  background: linear-gradient(90deg, rgba(77, 125, 250, 0.38) var(--progress, 0%), var(--surface, var(--pill)) 0);
+  background: linear-gradient(90deg, rgba(0, 140, 255, 0.4) var(--progress, 0%), var(--surface, var(--pill)) 0);
   font-size: 12.5px;
   font-variant-numeric: tabular-nums;
 }
@@ -825,7 +904,7 @@ svg[data-paint="glyph"] {
   --surface: var(--pill-hover);
 }
 .versions[data-over] .new-version {
-  background: var(--accent);
+  background: var(--sun);
   color: #fff;
 }
 .new-version[data-status="sending"]:disabled {
@@ -882,14 +961,14 @@ svg[data-paint="glyph"] {
   top: 4px;
   left: 0;
   right: 0;
-  height: 1px;
+  height: 1.5px;
   background: var(--edge);
 }
 /* The last stretch fades out, since history carries on past what's shown. */
 .day:last-child::after {
   background: linear-gradient(to right, var(--edge), transparent);
 }
-/* The dot where the day starts, sitting on the line. */
+/* A dot where each day starts, on the line: orange, in a pale ring. */
 .day::before {
   content: "";
   position: absolute;
@@ -899,13 +978,13 @@ svg[data-paint="glyph"] {
   width: 9px;
   height: 9px;
   border-radius: 50%;
-  background: var(--dim);
-  box-shadow: 0 0 0 4px var(--pill);
+  background: var(--sun);
+  box-shadow: 0 0 0 4px var(--sun-fill);
 }
-/* The newest day is "now", so it gets the accent. */
+/* The newest day is "now", so it gets the sky. */
 .day:first-child::before {
   background: var(--accent);
-  box-shadow: 0 0 0 4px rgba(77, 125, 250, 0.22);
+  box-shadow: 0 0 0 4px rgba(0, 140, 255, 0.22);
 }
 .day-head {
   display: flex;
@@ -947,7 +1026,7 @@ svg[data-paint="glyph"] {
   align-items: center;
   gap: 6px;
   border-radius: var(--radius);
-  background: var(--pill);
+  background: var(--panel);
   cursor: pointer;
   transition:
     transform 420ms cubic-bezier(0.34, 1.56, 0.64, 1),
@@ -955,26 +1034,37 @@ svg[data-paint="glyph"] {
     box-shadow 140ms ease;
 }
 .dropzone:hover {
-  background: var(--pill-hover);
+  background: var(--panel-hover);
 }
 .dropzone:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(77, 125, 250, 0.35);
+  box-shadow: 0 0 0 3px var(--halo);
 }
-/* A file over it: it fills with the accent. */
+/* A file over it: it fills with orange. */
 .dropzone[data-over] {
   transform: scale(1.025);
-  background: rgba(77, 125, 250, 0.22);
+  background: var(--sun-fill);
 }
-/* The upload mark, solid, in the accent colour. */
+/* The upload mark, in the accent, on a white disc. */
 .drop-icon {
-  margin-bottom: 6px;
+  margin-bottom: 8px;
+  width: 64px;
+  height: 64px;
   display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--float);
+  box-shadow: 0 0 0 1px var(--edge), 0 8px 20px -10px rgba(0, 0, 0, 0.35);
   color: var(--accent);
+  transition: transform 420ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.dropzone[data-over] .drop-icon {
+  transform: scale(1.08);
 }
 .drop-icon svg {
-  width: 38px;
-  height: 38px;
+  width: 34px;
+  height: 34px;
 }
 .dropzone strong {
   font-size: 14px;
@@ -1112,11 +1202,16 @@ svg[data-paint="glyph"] {
   justify-content: space-between;
   gap: 12px;
 }
+/* "Kiss it in", in the logo's orange. */
 .kiss {
   flex: none;
   padding: 0.55em 1.5em;
   font-weight: 600;
   white-space: nowrap;
+  background: var(--sun);
+}
+.kiss:hover:not(:disabled) {
+  background: var(--sun-hover);
 }
 
 /* The uploaded images, as a band of strips (Carousel.tsx): the one under the pointer opens
@@ -1176,7 +1271,8 @@ svg[data-paint="glyph"] {
 
 /* Sidebar ------------------------------------------------------------------ */
 
-/* A solid panel down the left, a shade darker than the page, rather than a line between them. */
+/* A solid panel down the left: white on a pale page, dark in the dark, with a hairline where
+   it meets the page rather than a line drawn between them. */
 .sidebar {
   position: sticky;
   top: 0;
@@ -1189,23 +1285,31 @@ svg[data-paint="glyph"] {
   flex-direction: column;
   gap: 2px;
   background: var(--sidebar-fill);
+  box-shadow: 1px 0 0 var(--sidebar-edge);
 }
 .brand {
   display: flex;
   align-items: center;
   gap: 10px;
   margin: 0 6px 18px;
+  font-family: var(--display);
+  font-size: 17px;
   font-weight: 600;
 }
+/* The logo, with the glow its sun has. */
 .brand img {
   width: 26px;
   height: 26px;
   object-fit: cover;
   border-radius: 7px;
+  box-shadow: 0 2px 10px rgba(0, 140, 255, 0.35);
 }
 .nav-link {
   width: 100%;
   padding: 7px 12px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
   border-color: transparent;
   border-radius: 10px;
   background: transparent;
@@ -1213,10 +1317,24 @@ svg[data-paint="glyph"] {
   text-align: left;
   font-size: 14px;
 }
+/* A seal beside the page you're on, in orange; the others keep the space. */
+.nav-link::before {
+  content: "";
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: transparent;
+  transition: background 140ms ease;
+}
+.nav-link[aria-current="page"]::before {
+  background: var(--sun);
+}
 .nav-link:hover:not(:disabled) {
   background: var(--pill);
   color: var(--ink);
 }
+/* The page you're on: a white pill, with the seal. */
 .nav-link[aria-current="page"] {
   background: var(--pill-strong);
   color: var(--ink);
