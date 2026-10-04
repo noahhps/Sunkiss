@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState, type CSSProperties, type DragEvent } from "react";
-import { isVideo, type FileEntry, type Version } from "../api";
+import { isDesign, isVideo, type FileEntry, type Version } from "../api";
 import { useFiles } from "../hooks/useFiles";
 import { useStoredState } from "../hooks/useStoredState";
 import { useStarred } from "../stars";
 import Details from "./Details";
 import FileActions from "./FileActions";
-import FilterBar, { SHOWS, SIZES, SORTS, type Show, type Size, type Sort } from "./FilterBar";
+import FilterBar, { SHOWS, SHOW_LABELS, SIZES, SORTS, type Show, type Size, type Sort } from "./FilterBar";
 import Icon from "./Icon";
+import Layers from "./Layers";
 import type { Screen } from "./NavBar";
 import Print from "./Print";
 import RefreshButton from "./RefreshButton";
@@ -26,7 +27,10 @@ const ORDERS: Record<Sort, (a: FileEntry, b: FileEntry) => number> = {
   largest: (a, b) => b.size - a.size,
 };
 
-const isMedia = (file: FileEntry) => file.type.startsWith("image/") || isVideo(file);
+// What the grid shows: images, videos, and layered design files (Photoshop, Sketch, XD…).
+const isMedia = (file: FileEntry) => file.type.startsWith("image/") || isVideo(file) || isDesign(file);
+const isImage = (file: FileEntry) => file.type.startsWith("image/") && !isDesign(file);
+const SHOWN: Record<Show, (file: FileEntry) => boolean> = { all: () => true, images: isImage, videos: isVideo, design: isDesign };
 
 // Whether a key was pressed while typing, so it isn't a shortcut; and whether it was pressed
 // on a slider (the compare divider), whose arrow keys are its own.
@@ -65,7 +69,7 @@ export default function Home({
 
   const library = files.filter(isMedia);
   const media = library
-    .filter((file) => show === "all" || (show === "videos" ? isVideo(file) : !isVideo(file)))
+    .filter(SHOWN[show])
     .filter((file) => !starredOnly || starred.has(file.name))
     .sort(ORDERS[sort]);
   const typed = query.trim().toLowerCase();
@@ -176,11 +180,19 @@ export default function Home({
 
       {selected ? (
         <>
-          <FileActions file={selected} />
+          <FileActions
+            file={selected}
+            onUpdated={(saved) => {
+              update(saved);
+              setViewing(null);
+              setComparing(false);
+            }}
+          />
           <div className="file-view">
             <div className="stage-column">
               <Stage file={selected} version={viewing ?? undefined} compare={comparing} />
               <Details file={selected} version={viewing ?? undefined} />
+              <Layers file={selected} version={viewing ?? undefined} />
             </div>
             <VersionTree
               key={selected.name}
@@ -220,7 +232,7 @@ export default function Home({
             />
             {media.length === 0 ? (
               <p className="note">
-                {starredOnly ? "Nothing starred yet. Star a file from the corner of its print." : `No ${show} in Sunkiss.`}
+                {starredOnly ? "Nothing starred yet. Star a file from the corner of its print." : `No ${SHOW_LABELS[show].toLowerCase()} in Sunkiss.`}
               </p>
             ) : (
               <div className="prints">

@@ -1600,3 +1600,258 @@ svg[data-paint="glyph"] {
   background: var(--pill-strong);
   color: var(--ink);
 }
+
+/* Design files -------------------------------------------------------------- */
+
+/* A file with no picture to show (a design file that carries none): its kind, on a tile the
+   size of a print. On the stage, bigger, with a word about it. */
+.type-tile {
+  display: grid;
+  place-items: center;
+  width: var(--print-size, 100px);
+  height: calc(var(--print-size, 100px) * 0.75);
+  border: 3px solid var(--print-edge);
+  border-radius: 3px;
+  background: var(--pill-strong);
+  box-shadow: 0 3px 10px -2px rgba(0, 0, 0, 0.45);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--dim);
+}
+.type-tile.big {
+  width: 220px;
+  height: 160px;
+  border-radius: 10px;
+  font-size: 22px;
+}
+.no-picture {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  max-width: 360px;
+}
+.no-picture .note {
+  margin: 0;
+}
+/* Where a print came from, when it was snapshotted rather than uploaded: in the bottom corner. */
+.source-badge {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  padding: 0 5px;
+  border-radius: 3px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 14px;
+  letter-spacing: 0.04em;
+}
+
+/* The layers inside a design file (Layers.tsx), under the stage: a tree, with what changed
+   since an earlier version marked on each row. */
+.layers {
+  margin-top: 14px;
+  padding: 10px 6px 8px;
+  border-radius: 14px;
+  background: var(--panel);
+  text-align: left;
+}
+.layers-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+  padding: 0 8px;
+}
+.layers-head h2 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 22px;
+}
+.layers-head span {
+  font-size: 11.5px;
+  color: var(--faint);
+  text-align: right;
+}
+.layer-tree,
+.layer-tree ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.layer-tree {
+  max-height: 260px;
+  overflow-y: auto;
+}
+.layer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px 3px calc(8px + var(--depth, 0) * 16px);
+  border-radius: 7px;
+  font-size: 12.5px;
+  line-height: 18px;
+}
+.layer:hover {
+  background: var(--pill);
+}
+.layer[data-hidden] {
+  opacity: 0.5;
+}
+.layer-fold {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: var(--faint);
+}
+.layer-fold svg {
+  width: 11px;
+  height: 11px;
+  --glyph-weight: 3;
+  transition: transform 140ms ease;
+}
+.layer-fold[aria-expanded="false"] svg {
+  transform: rotate(-90deg);
+}
+.layer-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.layer-kind,
+.layer-size {
+  flex: none;
+  font-size: 10.5px;
+  color: var(--faint);
+}
+.layer-kind {
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--pill);
+  line-height: 15px;
+}
+.layer-size {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+/* What happened to the layer since this version: changed or removed. */
+.layer-change {
+  flex: none;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 16px;
+  background: var(--sun-fill);
+  color: var(--sun);
+}
+.layer[data-change="removed"] .layer-change {
+  background: var(--pill-strong);
+  color: var(--dim);
+}
+.layer[data-change="removed"] .layer-name {
+  text-decoration: line-through;
+}
+.layers-added {
+  margin: 6px 8px 0;
+  font-size: 12px;
+  color: var(--dim);
+}
+
+/* From Figma (FigmaImport.tsx), on the Upload screen ------------------------- */
+
+.section-title {
+  margin: 36px 0 10px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--dim);
+  text-align: left;
+}
+.figma-import {
+  text-align: left;
+}
+.figma-link {
+  display: flex;
+  gap: 8px;
+}
+.figma-link input {
+  flex: 1;
+  min-width: 0;
+  font-size: 13.5px;
+}
+.figma-import > .note,
+.figma-import > .error {
+  margin: 8px 0 0;
+}
+/* The file Figma described: its pages, each with the frames on it to pick from. */
+.figma-file {
+  margin-top: 12px;
+  padding: 12px 14px 10px;
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+.figma-name {
+  margin: 0 0 6px;
+  font-size: 13.5px;
+}
+.figma-page h3 {
+  margin: 10px 0 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--dim);
+}
+.frame-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+}
+.frame-list label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px 3px 6px;
+  border-radius: 999px;
+  background: var(--pill);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.frame-list label:has(input:checked) {
+  background: var(--sun-fill);
+}
+.frame-type {
+  font-size: 10.5px;
+  color: var(--faint);
+}
+.figma-file .upload-footer {
+  margin-top: 12px;
+}
+.figma-done {
+  margin-top: 10px;
+}
+.figma-done p {
+  margin: 4px 0 0;
+}
+/* A pill waiting on Figma breathes, like anything on its way. */
+.pill[data-status="busy"] {
+  animation: breathe 1.4s ease-in-out infinite;
+}
+.pill[data-status="failed"] {
+  color: var(--warn);
+}

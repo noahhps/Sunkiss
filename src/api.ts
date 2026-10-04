@@ -20,9 +20,24 @@ export const FILES = `${BASE}/files`;
 export const failureMessage = (res: Response) =>
   res.status === 502 ? "Couldn't reach the server" : `The server answered ${res.status}`;
 
+/** Where a file came from, when it wasn't uploaded: so far, a frame in a Figma file, which the
+ * server rendered and saved (see figma.ts). */
+export type Link = {
+  source: "figma";
+  url: string;
+  key: string;
+  nodeId: string;
+  nodeName: string;
+  fileName: string;
+  version: string;
+  lastModified: string | null;
+  snapshotAt: string;
+};
+
 /** A file in the server's folder. `size` is in bytes; `modified` is when it was last saved, as an
  * ISO date; `etag` changes with every save. `version` is the id of the current version, and
- * `versions` counts it and the earlier ones (listVersions lists them). */
+ * `versions` counts it and the earlier ones (listVersions lists them). `link` says where it
+ * came from, when it was snapshotted from elsewhere rather than uploaded. */
 export type FileEntry = {
   name: string;
   type: string;
@@ -31,17 +46,40 @@ export type FileEntry = {
   etag: string;
   version: string;
   versions: number;
+  link?: Link;
 };
 
 /** One saved version of a file: its id (what ?V= takes), size, when it was saved, its ETag, and
  * whether it's the current one. */
 export type Version = { id: string; size: number; modified: string; etag: string; current: boolean };
 
-// Types the server can resize (keep in sync with RESIZABLE in server/src/routes/files.ts).
-const RESIZABLE = ["image/png", "image/jpeg", "image/webp"];
+// Types the server can resize (keep in sync with RESIZABLE in server/src/routes/files.ts), and
+// the layered design files it can take a flattened picture out of (DESIGN_EXTENSIONS in
+// server/src/design.ts), which it then resizes the same way.
+const RESIZABLE = ["image/png", "image/jpeg", "image/webp", "image/tiff"];
+const DESIGN = [
+  "image/vnd.adobe.photoshop",
+  "application/illustrator",
+  "application/x-indesign",
+  "application/x-sketch",
+  "application/x-figma",
+  "application/vnd.adobe.xd",
+];
 
-/** Whether the server can send a resized copy of this file. */
-export const isResizable = (file: FileEntry) => RESIZABLE.includes(file.type);
+/** Whether the server can send a resized copy of this file (for a design file: of the picture it
+ * carries of itself, which not every one does; the server says 415 when it can't). */
+export const isResizable = (file: FileEntry) => RESIZABLE.includes(file.type) || DESIGN.includes(file.type);
+
+/** Whether a file is a layered design file (Photoshop, Illustrator, Sketch, XD, a Figma export…):
+ * the server can list its layers, and it opens in the app that made it rather than playing or
+ * showing as itself. */
+export const isDesign = (file: FileEntry) => DESIGN.includes(file.type);
+
+/** A file's kind, in a word, from its name: "PSD", "JPG", "SKETCH". */
+export const kindOf = (file: FileEntry) => {
+  const extension = file.name.includes(".") ? file.name.split(".").pop()! : "";
+  return extension ? extension.toUpperCase() : file.type;
+};
 
 /** Whether a file is a video, which plays as it streams instead of downloading first. */
 export const isVideo = (file: FileEntry) => file.type.startsWith("video/");
@@ -129,12 +167,31 @@ export async function listVersions(name: string): Promise<Version[]> {
   return res.json();
 }
 
-/** What's inside an image, as the server reads it: its width and height in pixels, its format,
- * and whether it has transparency. Null for anything that isn't an image. */
-export type FileInfo = { width: number; height: number; format: string | null; hasAlpha: boolean } | null;
+/** One layer of a design file, as the server reads it (Layer in server/src/design.ts). */
+export type Layer = {
+  name: string;
+  kind: "page" | "artboard" | "group" | "layer" | "text" | "image" | "smart" | "shape";
+  visible: boolean;
+  opacity?: number;
+  bounds?: [number, number, number, number]; // x, y, width, height
+  children?: Layer[];
+};
 
-/** Asks the server what's inside an image (GET /files/:name/info): the current version, or with
- * a version id (from listVersions), that one. */
+/** What's inside a file, as the server reads it: its size (in `units`: pixels, or points for
+ * Illustrator), its format, whether it has transparency, and for a design file its layers.
+ * Null for anything the server can't read. */
+export type FileInfo = {
+  width?: number;
+  height?: number;
+  units?: "px" | "pt";
+  format: string | null;
+  hasAlpha?: boolean;
+  layers?: Layer[];
+  layerCount?: number;
+} | null;
+
+/** Asks the server what's inside a file (GET /files/:name/info): the current version, or with a
+ * version id (from listVersions), that one. */
 export async function fileInfo(file: FileEntry, version = file.version): Promise<FileInfo> {
   const res = await fetch(`${FILES}/${encodeURIComponent(file.name)}/info?V=${encodeURIComponent(version)}`);
   if (!res.ok) throw new Error(failureMessage(res));

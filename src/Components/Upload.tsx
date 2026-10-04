@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type DragEvent } from "react";
 import { Conflict, listFiles, uploadFile, type FileEntry } from "../api";
 import { formatSize } from "../format";
 import CombinedCarousel from "./CombinedCarousel";
+import FigmaImport from "./FigmaImport";
 import Icon from "./Icon";
 
 type Status = "ready" | "sending" | "done" | "exists" | "failed";
@@ -20,6 +21,14 @@ const BADGES: Record<string, string> = {
   webp: "#12a594",
   svg: "#8e4ec6",
   psd: "#1473e6",
+  psb: "#1473e6",
+  ai: "#ff7c00",
+  indd: "#ff3366",
+  sketch: "#f7b500",
+  fig: "#a259ff",
+  xd: "#ff61f6",
+  tif: "#6b7280",
+  tiff: "#6b7280",
   pdf: "#e5484d",
   mov: "#008cff",
   mp4: "#008cff",
@@ -179,6 +188,15 @@ export default function Upload({ initialFiles, onConsumed }: { initialFiles?: Fi
           </button>
         </div>
       )}
+
+      {/* Frames snapshotted from Figma are images sent this session like any other. */}
+      <FigmaImport
+        onSaved={(saved) => {
+          const without = (list: FileEntry[]) => list.filter((file) => !saved.some((entry) => entry.name === file.name));
+          setLibrary((list) => [...saved, ...without(list)]);
+          setSession((list) => [...saved, ...without(list)]);
+        }}
+      />
 
       <CombinedCarousel images={session} />
     </main>

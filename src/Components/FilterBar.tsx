@@ -1,14 +1,14 @@
 import Icon from "./Icon";
 
-export type Show = "all" | "images" | "videos";
+export type Show = "all" | "images" | "videos" | "design";
 export type Sort = "newest" | "oldest" | "name" | "largest";
 export type Size = "s" | "m" | "l";
 
-export const SHOWS: readonly Show[] = ["all", "images", "videos"];
+export const SHOWS: readonly Show[] = ["all", "images", "videos", "design"];
 export const SORTS: readonly Sort[] = ["newest", "oldest", "name", "largest"];
 export const SIZES: readonly Size[] = ["s", "m", "l"];
 
-const SHOW_LABELS: Record<Show, string> = { all: "All", images: "Images", videos: "Videos" };
+export const SHOW_LABELS: Record<Show, string> = { all: "All", images: "Images", videos: "Videos", design: "Design files" };
 const SORT_LABELS: Record<Sort, string> = { newest: "Newest", oldest: "Oldest", name: "A–Z", largest: "Largest" };
 const SIZE_LABELS: Record<Size, string> = { s: "S", m: "M", l: "L" };
 

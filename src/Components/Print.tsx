@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { fileUrl, isVideo, type FileEntry } from "../api";
+import { fileUrl, isVideo, kindOf, type FileEntry } from "../api";
 import { dragOut, preparePreview, useDriveFolder } from "../drive";
 import { useSessionFile } from "../hooks/useSessionFile";
 import { toggleStar, useIsStarred } from "../stars";
@@ -28,6 +28,7 @@ export default function Print({
   onSelect: (file: FileEntry) => void;
 }) {
   const [duration, setDuration] = useState<number>();
+  const [noPicture, setNoPicture] = useState(false); // the server has no preview to give (some design files)
   const session = useSessionFile(file);
   const folder = useDriveFolder(); // null in a browser, or until the drive is mounted
   const starred = useIsStarred(file.name);
@@ -63,9 +64,17 @@ export default function Print({
                 playsInline
                 onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
               />
+            ) : noPicture ? (
+              // A design file that carries no picture of itself: its kind, on a tile.
+              <span className="type-tile">{kindOf(file)}</span>
             ) : (
               // Copies bigger than the box they're shown in, so they stay sharp on Retina screens.
-              <img src={fileUrl(file, 400, 400)} alt={file.name} loading="lazy" />
+              <img src={fileUrl(file, 400, 400)} alt={file.name} loading="lazy" onError={() => setNoPicture(true)} />
+            )}
+            {file.link?.source === "figma" && (
+              <span className="source-badge" title={`Snapshot of ${file.link.nodeName} in ${file.link.fileName}, from Figma`}>
+                Figma
+              </span>
             )}
             {duration !== undefined && Number.isFinite(duration) && <span className="duration">{clock(duration)}</span>}
             {file.versions > 1 && (

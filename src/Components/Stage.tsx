@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { fileUrl, isVideo, type FileEntry, type Version } from "../api";
+import { fileUrl, isDesign, isVideo, kindOf, type FileEntry, type Version } from "../api";
 import { formatWhen } from "../format";
 import { useObjectUrl } from "../hooks/useObjectUrl";
 import { useSessionFile } from "../hooks/useSessionFile";
@@ -37,7 +37,7 @@ export default function Stage({ file, version, compare }: { file: FileEntry; ver
         <Compare file={file} version={comparing} />
       ) : isVideo(file) ? (
         <Player key={`${file.name}@${id}`} file={file} version={id} kept={kept?.blob} />
-      ) : kept ? (
+      ) : kept && !isDesign(file) ? (
         <KeptImage file={file} blob={kept.blob} />
       ) : (
         <StreamedImage file={file} version={id} />
@@ -85,6 +85,17 @@ function StreamedImage({ file, version }: { file: FileEntry; version: string }) 
       </Tilt>
     );
   }
-  if (preview.status === "error") return <p className="error">{preview.message}</p>;
+  if (preview.status === "error") {
+    // A design file with no picture inside it (the server says 415): say so, rather than erroring.
+    if (isDesign(file) && preview.message.endsWith("415")) {
+      return (
+        <div className="no-picture">
+          <span className="type-tile big">{kindOf(file)}</span>
+          <p className="note">This file doesn't carry a picture of itself. Open it in its app to see it; its layers are listed below.</p>
+        </div>
+      );
+    }
+    return <p className="error">{preview.message}</p>;
+  }
   return null;
 }

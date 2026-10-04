@@ -1,10 +1,11 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { IN_DESKTOP_APP } from "../api";
 import { appsForKind, type App } from "../drive";
+import { setFigmaToken, useFigmaToken } from "../figma";
 import { chooseApp, useChosenApp, type Kind } from "../preferences";
 
-// Settings. "Open files in" is real and applies right away; the rest is still filler: every
-// control responds, but nothing is saved yet.
+// Settings. "Open files in" and the Figma token are real and apply right away; the rest is
+// still filler: every control responds, but nothing is saved yet.
 export default function Settings() {
   const [displayName, setDisplayName] = useState("");
   const [theme, setTheme] = useState("system");
@@ -35,6 +36,11 @@ export default function Settings() {
               ? "What “Open in” on a file uses. Changes apply right away."
               : "Only in the desktop app, which can see the apps on this Mac."}
           </p>
+        </fieldset>
+
+        <fieldset style={styles.section}>
+          <legend style={styles.legend}>Figma</legend>
+          <FigmaToken />
         </fieldset>
 
         <fieldset style={styles.section}>
@@ -104,6 +110,39 @@ export default function Settings() {
   );
 }
 
+// The personal access token Sunkiss uses to ask Figma for files (figma.ts). Kept on this
+// device only, and sent to the Sunkiss server with each Figma request, never stored there.
+function FigmaToken() {
+  const token = useFigmaToken();
+  const [draft, setDraft] = useState(token);
+  const changed = draft.trim() !== token;
+  return (
+    <>
+      <label style={styles.field}>
+        Personal access token
+        <span style={styles.rowInline}>
+          <input
+            type="password"
+            value={draft}
+            onChange={(e) => setDraft(e.currentTarget.value)}
+            placeholder="figd_…"
+            autoComplete="off"
+            spellCheck={false}
+            style={{ flex: 1 }}
+          />
+          <button type="button" className="primary" disabled={!changed} onClick={() => setFigmaToken(draft)}>
+            {token && !draft.trim() ? "Forget" : "Save"}
+          </button>
+        </span>
+      </label>
+      <p style={styles.muted}>
+        {token ? "Set. " : ""}Make one in Figma under Settings › Security › Personal access tokens; read access to files is enough. It
+        stays on this device and lets the Upload screen snapshot frames from Figma.
+      </p>
+    </>
+  );
+}
+
 // One kind of file's app: its default, or any app on this Mac that can open that kind.
 function OpenWith({ kind, label }: { kind: Kind; label: string }) {
   const chosen = useChosenApp(kind);
@@ -145,6 +184,7 @@ const styles = {
   legend: { padding: 0, marginBottom: 10, fontSize: 11, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--dim)" },
   field: { display: "flex", flexDirection: "column", gap: 6, fontSize: 13.5 },
   checkRow: { display: "flex", alignItems: "center", gap: 8, fontSize: 13.5 },
+  rowInline: { display: "flex", alignItems: "center", gap: 8 },
   muted: { margin: 0, fontSize: 13.5, color: "var(--dim)" },
   save: { alignSelf: "flex-start" },
 } satisfies Record<string, CSSProperties>;

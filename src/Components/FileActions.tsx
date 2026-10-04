@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import type { FileEntry } from "../api";
+import { openUrl } from "@tauri-apps/plugin-opener";
+import { IN_DESKTOP_APP, type FileEntry } from "../api";
+import { snapshotFigma } from "../figma";
 import { appsFor, openIn, showInFinder, useDriveFolder, type App } from "../drive";
 import { kindOf, useChosenApp } from "../preferences";
 import { toggleStar, useIsStarred } from "../stars";
@@ -8,12 +10,14 @@ import Icon from "./Icon";
 
 // The file's actions, top right on the stage, opposite the back button. Show in Finder and
 // Open in… use the file in the Sunkiss drive (~/Sunkiss), so they only appear in the desktop
-// app, once the drive is mounted. Star and Download are always there.
-export default function FileActions({ file }: { file: FileEntry }) {
+// app, once the drive is mounted. Star and Download are always there. A file snapshotted from
+// Figma can be opened there, and snapshotted again (`onUpdated` gets it as it is then).
+export default function FileActions({ file, onUpdated }: { file: FileEntry; onUpdated?: (file: FileEntry) => void }) {
   const folder = useDriveFolder();
 
   return (
     <div className="file-actions">
+      {file.link?.source === "figma" && <FigmaActions file={file} onUpdated={onUpdated} />}
       {folder && (
         <>
           <button type="button" className="pill" title="Show in Finder" onClick={() => void showInFinder(file)}>
@@ -26,6 +30,50 @@ export default function FileActions({ file }: { file: FileEntry }) {
       <StarButton file={file} />
       <DownloadButton file={file} />
     </div>
+  );
+}
+
+// Open the frame in Figma, or ask Figma to render it again: the new render is the file's next
+// version, so what changed in Figma since shows in the history and the compare view.
+function FigmaActions({ file, onUpdated }: { file: FileEntry; onUpdated?: (file: FileEntry) => void }) {
+  const link = file.link!;
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+
+  const open = () => (IN_DESKTOP_APP ? void openUrl(link.url) : void window.open(link.url, "_blank", "noopener"));
+
+  async function again() {
+    setBusy(true);
+    setMessage(null);
+    try {
+      const { saved, failed } = await snapshotFigma(link.url, [{ id: link.nodeId, name: link.nodeName }]);
+      if (saved[0]) onUpdated?.(saved[0]);
+      else setMessage(failed[0]?.reason ?? "Figma couldn't render it");
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <>
+      <button type="button" className="pill" title={`Open ${link.nodeName} in Figma`} onClick={open}>
+        <Icon name="open" />
+        <span className="label">Open in Figma</span>
+      </button>
+      <button
+        type="button"
+        className="pill"
+        data-status={message ? "failed" : busy ? "busy" : undefined}
+        disabled={busy}
+        title={message ?? "Ask Figma to render this frame again, as the next version"}
+        onClick={() => void again()}
+      >
+        <Icon name="refresh" />
+        <span className="label">{busy ? "Rendering in Figma…" : message ? `${message} · Try again` : "Snapshot again"}</span>
+      </button>
+    </>
   );
 }
 
