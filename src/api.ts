@@ -129,6 +129,18 @@ export async function listVersions(name: string): Promise<Version[]> {
   return res.json();
 }
 
+/** What's inside an image, as the server reads it: its width and height in pixels, its format,
+ * and whether it has transparency. Null for anything that isn't an image. */
+export type FileInfo = { width: number; height: number; format: string | null; hasAlpha: boolean } | null;
+
+/** Asks the server what's inside an image (GET /files/:name/info): the current version, or with
+ * a version id (from listVersions), that one. */
+export async function fileInfo(file: FileEntry, version = file.version): Promise<FileInfo> {
+  const res = await fetch(`${FILES}/${encodeURIComponent(file.name)}/info?V=${encodeURIComponent(version)}`);
+  if (!res.ok) throw new Error(failureMessage(res));
+  return res.json();
+}
+
 /** Makes an earlier version the current one again (POST /files/:name/restore?V=…). It's saved
  * as a new version, so the one it replaces is kept too. Fails with a Conflict when the file
  * changed since `file` was listed. Straight to the server, as uploads go. */

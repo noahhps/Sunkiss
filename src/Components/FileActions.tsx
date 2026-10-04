@@ -2,12 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import type { FileEntry } from "../api";
 import { appsFor, openIn, showInFinder, useDriveFolder, type App } from "../drive";
 import { kindOf, useChosenApp } from "../preferences";
+import { toggleStar, useIsStarred } from "../stars";
 import DownloadButton from "./DownloadButton";
 import Icon from "./Icon";
 
 // The file's actions, top right on the stage, opposite the back button. Show in Finder and
 // Open in… use the file in the Sunkiss drive (~/Sunkiss), so they only appear in the desktop
-// app, once the drive is mounted. Download is always there.
+// app, once the drive is mounted. Star and Download are always there.
 export default function FileActions({ file }: { file: FileEntry }) {
   const folder = useDriveFolder();
 
@@ -22,8 +23,26 @@ export default function FileActions({ file }: { file: FileEntry }) {
           <OpenIn file={file} />
         </>
       )}
+      <StarButton file={file} />
       <DownloadButton file={file} />
     </div>
+  );
+}
+
+// Stars the file, to keep it close (stars.ts); the grid can show only starred files.
+function StarButton({ file }: { file: FileEntry }) {
+  const starred = useIsStarred(file.name);
+  return (
+    <button
+      type="button"
+      className="pill star-pill"
+      aria-pressed={starred}
+      title={starred ? "Take the star off" : "Star this file"}
+      onClick={() => toggleStar(file.name)}
+    >
+      <Icon name="star" />
+      <span className="label">{starred ? "Starred" : "Star"}</span>
+    </button>
   );
 }
 

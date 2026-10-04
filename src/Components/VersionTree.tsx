@@ -26,6 +26,8 @@ export default function VersionTree({
   onView,
   onSaved,
   onStale,
+  comparing = false,
+  onCompare,
 }: {
   file: FileEntry;
   viewing: string; // the id of the version on the stage
@@ -33,6 +35,8 @@ export default function VersionTree({
   onView: (version: Version) => void;
   onSaved: (file: FileEntry) => void; // a new version was saved: the file as it is now
   onStale: () => void; // the file changed on the server since it was listed
+  comparing?: boolean; // the earlier version on the stage is shown against the current one
+  onCompare?: (comparing: boolean) => void;
 }) {
   const { versions, error, loading } = useVersions(file.name, `${file.version} ${stamp}`);
   const [busy, setBusy] = useState(false); // restoring, or saving a new version
@@ -150,14 +154,22 @@ export default function VersionTree({
                 </span>
               </button>
               {shown && !version.current && (
-                <button
-                  type="button"
-                  className="primary restore"
-                  disabled={busy}
-                  onClick={() => void save(() => restoreVersion(file, version))}
-                >
-                  Restore this version
-                </button>
+                <div className="version-actions">
+                  <button
+                    type="button"
+                    className="primary restore"
+                    disabled={busy}
+                    onClick={() => void save(() => restoreVersion(file, version))}
+                  >
+                    Restore this version
+                  </button>
+                  {/* Side by side with the current one, to find what changed (images only). */}
+                  {onCompare && !isVideo(file) && (
+                    <button type="button" className="compare-toggle" aria-pressed={comparing} onClick={() => onCompare(!comparing)}>
+                      {comparing ? "Stop comparing" : "Compare with current"}
+                    </button>
+                  )}
+                </div>
               )}
             </li>
           );

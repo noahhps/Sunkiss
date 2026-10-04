@@ -5,6 +5,7 @@ import { useObjectUrl } from "../hooks/useObjectUrl";
 import { useSessionFile } from "../hooks/useSessionFile";
 import { useStream } from "../hooks/useStream";
 import { touch } from "../sessionCache";
+import Compare from "./Compare";
 import Tilt from "./Tilt";
 
 const kb = (bytes: number) => `${Math.round(bytes / 1024).toLocaleString()} KB`;
@@ -13,8 +14,9 @@ const kb = (bytes: number) => `${Math.round(bytes / 1024).toLocaleString()} KB`;
 // as such. A file kept for this session opens straight from memory, at full size, with no
 // trip to the server (the page's memory in a browser; Rust's in the desktop app). Otherwise a
 // video plays straight off the server, a slice at a time as it's watched, and an image
-// streams in as an 800px copy. Images tilt toward the pointer.
-export default function Stage({ file, version }: { file: FileEntry; version?: Version }) {
+// streams in as an 800px copy. Images tilt toward the pointer. With `compare`, an earlier
+// version is shown against the current one instead (Compare.tsx; images only).
+export default function Stage({ file, version, compare }: { file: FileEntry; version?: Version; compare?: boolean }) {
   const entry = useSessionFile(file);
   // What's kept for the session is the current version: an earlier one always streams.
   const kept = !version && entry?.status === "kept" ? entry : undefined;
@@ -25,10 +27,15 @@ export default function Stage({ file, version }: { file: FileEntry; version?: Ve
     if (kept) touch(file);
   }, [file, kept]);
 
+  // A video plays as itself: only images are compared.
+  const comparing = compare && version && !isVideo(file) ? version : undefined;
+
   return (
     <section className="preview stage">
-      {version && <p className="stage-label">Earlier version · {formatWhen(version.modified)}</p>}
-      {isVideo(file) ? (
+      {version && !comparing && <p className="stage-label">Earlier version · {formatWhen(version.modified)}</p>}
+      {comparing ? (
+        <Compare file={file} version={comparing} />
+      ) : isVideo(file) ? (
         <Player key={`${file.name}@${id}`} file={file} version={id} kept={kept?.blob} />
       ) : kept ? (
         <KeptImage file={file} blob={kept.blob} />

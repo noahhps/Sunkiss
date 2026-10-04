@@ -31,8 +31,9 @@ const BADGES: Record<string, string> = {
 // Images sent this session gather at the bottom, in the carousel, three at a time. A session
 // lasts from opening this screen until leaving it. A file whose name is already in Sunkiss can
 // go in as a copy beside it ("Keep both"), or as its new version ("Replace": the one it
-// replaces is kept on the server). This is the start of the version-control page.
-export default function Upload() {
+// replaces is kept on the server). This is the start of the version-control page. Files
+// dropped on another screen (Home) arrive as `initialFiles`, already chosen.
+export default function Upload({ initialFiles, onConsumed }: { initialFiles?: File[] | null; onConsumed?: () => void }) {
   const [items, setItems] = useState<Item[]>([]);
   const [over, setOver] = useState(false); // a file is being dragged over the drop zone
   const [sending, setSending] = useState(false);
@@ -44,14 +45,23 @@ export default function Upload() {
     listFiles().then(setLibrary, () => {});
   }, []);
 
+  // Taken once: in development StrictMode runs this twice, and the files shouldn't list twice.
+  const taken = useRef(false);
+  useEffect(() => {
+    if (taken.current || !initialFiles?.length) return;
+    taken.current = true;
+    add(initialFiles);
+    onConsumed?.();
+  }, [initialFiles]);
+
   const update = (id: string, change: Partial<Item>) =>
     setItems((list) => list.map((item) => (item.id === id ? { ...item, ...change } : item)));
 
-  function add(files: FileList | null) {
+  function add(files: ArrayLike<File> | null | undefined) {
     if (!files?.length) return;
     // Random ids rather than a counter, which would start again whenever the dev server
     // reloads this file with rows still on screen.
-    const added = [...files].map((file) => ({ id: crypto.randomUUID(), file, name: file.name, status: "ready" as Status, sent: 0 }));
+    const added = Array.from(files).map((file) => ({ id: crypto.randomUUID(), file, name: file.name, status: "ready" as Status, sent: 0 }));
     setItems((list) => [...list, ...added]);
   }
 

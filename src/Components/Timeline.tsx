@@ -54,7 +54,7 @@ export default function Timeline({
   // Bring the chosen file to the middle of the strip: straight there when the timeline
   // opens, gliding when you pick another from it.
   useEffect(() => {
-    list.current?.querySelector('[aria-pressed="true"]')?.scrollIntoView({
+    list.current?.querySelector('.print-open[aria-pressed="true"]')?.scrollIntoView({
       block: "nearest",
       inline: "center",
       behavior: opening.current ? "instant" : "smooth",

@@ -341,6 +341,28 @@ files.post('/:name/restore', async (c) => {
   return c.json(await entryOf(name, saved), 201);
 });
 
+// GET /files/:name/info → what's inside an image: its width and height in pixels, its format,
+// and whether it has transparency, as sharp reads them. ?V=<id> asks about one of its
+// versions instead of the current one. Anything that isn't an image gets null.
+files.get('/:name/info', async (c) => {
+  const name = c.req.param('name');
+  if (!isSafeName(name)) {
+    return c.text('Invalid file name', 400);
+  }
+  const id = c.req.query('V');
+  const versions = await versionsOf(name);
+  const version = id ? versions.find((saved) => saved.id === id) : versions.find((saved) => saved.current);
+  if (!version) return c.text(id ? 'No such version' : 'File not found', 404);
+  if (!typeOf(name).startsWith('image/')) return c.json(null);
+  try {
+    const { width, height, format, hasAlpha } = await sharp(version.path).metadata();
+    if (!width || !height) return c.json(null);
+    return c.json({ width, height, format: format ?? null, hasAlpha: hasAlpha ?? false });
+  } catch {
+    return c.json(null); // not an image sharp can read
+  }
+});
+
 //deleting a file by name
 files.delete('/:name/delete', async (c) => {
     const name = c.req.param('name');

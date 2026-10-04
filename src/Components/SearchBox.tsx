@@ -1,17 +1,20 @@
-import { useState } from "react";
+import { useState, type Ref } from "react";
 import Icon from "./Icon";
 
 // The search field, in the style of Courier QuickView's composer: a floating glass capsule
 // with a round accent button that sends. `onChange` reports every keystroke, for screens
-// that filter as you type; `onSearch` fires when you press Enter or the button.
+// that filter as you type; `onSearch` fires when you press Enter or the button. `inputRef`
+// reaches the field itself, for a screen that wants to focus it (Home's / shortcut).
 export default function SearchBox({
   onSearch,
   onChange,
   placeholder = "Search, Ask, Task",
+  inputRef,
 }: {
   onSearch: (query: string) => void;
   onChange?: (query: string) => void;
   placeholder?: string;
+  inputRef?: Ref<HTMLInputElement>;
 }) {
   const [value, setValue] = useState("");
 
@@ -24,6 +27,7 @@ export default function SearchBox({
       }}
     >
       <input
+        ref={inputRef}
         value={value}
         onChange={(e) => {
           setValue(e.currentTarget.value);
