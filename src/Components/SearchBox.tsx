@@ -1,4 +1,5 @@
 import { useState } from "react";
+import Icon from "./Icon";
 
 // The search field, in the style of Courier QuickView's composer: a floating glass capsule
 // with a round accent button that sends. `onChange` reports every keystroke, for screens
@@ -32,9 +33,7 @@ export default function SearchBox({
         aria-label="Search files"
       />
       <button type="submit" className="round send" aria-label="Search" disabled={!value.trim()}>
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M12 19V5M6 11l6-6 6 6" />
-        </svg>
+        <Icon name="send" />
       </button>
     </form>
   );

@@ -1,9 +1,9 @@
 import { serve } from '@hono/node-server';
-import { Hono } from 'hono';
+import { Hono, type Context } from 'hono';
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import { mkdir, readdir, rename, rm, stat } from 'node:fs/promises';
-import { createReadStream, createWriteStream } from 'node:fs';
+import { copyFile, mkdir, readdir, rename, rm, stat, utimes } from 'node:fs/promises';
+import { constants, createReadStream, createWriteStream, type Stats } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
@@ -15,6 +15,15 @@ const files = new Hono();
 
 // The folder to serve from: server/files, no matter where the server is started.
 const FILES_DIR = path.join(import.meta.dirname, '..', '..', 'files');
+
+// Earlier versions of each file: .versions/<name>/, one file per version. Each is named for
+// when that version was saved ("2026-10-01T19-55-28-605Z Logo.svg") and keeps that time as
+// its own modified time. Hidden from the list, like every name starting with a dot.
+const VERSIONS_DIR = path.join(FILES_DIR, '.versions');
+
+// Only plain file names: blocks "../" tricks that would reach outside the folder, and hidden
+// names like .versions.
+const isSafeName = (name: string) => name === path.basename(name) && !name.startsWith('.');
 
 const typeOf = (name: string) =>
   CONTENT_TYPES[path.extname(name).toLowerCase()] ?? 'application/octet-stream';
@@ -40,25 +49,65 @@ const CONTENT_TYPES: Record<string, string> = {
 const etagOf = (info: { size: number; mtimeMs: number }) =>
   `"${info.size.toString(16)}-${Math.floor(info.mtimeMs).toString(16)}"`;
 
-// GET /files → the name, type, size in bytes, last-changed time and ETag of every file in FILES_DIR
+// A version's id: its ETag without the quotes. A version keeps its size and modified time
+// when a newer one replaces it and it moves to .versions, so its id stays the same too.
+const idOf = (info: { size: number; mtimeMs: number }) => etagOf(info).slice(1, -1);
+
+type Saved = { id: string; path: string; info: Stats; current: boolean };
+
+// Every version of a file, newest first: the current one (when there is one), then the
+// earlier ones from .versions/<name>/.
+async function versionsOf(name: string): Promise<Saved[]> {
+  const filePath = path.join(FILES_DIR, name);
+  const current = await stat(filePath).catch(() => null);
+  const folder = path.join(VERSIONS_DIR, name);
+  const names = await readdir(folder).catch(() => [] as string[]);
+  const earlier = await Promise.all(
+    names
+      .filter((entry) => !entry.startsWith('.')) // like Finder's .DS_Store
+      .map(async (entry): Promise<Saved | null> => {
+        const info = await stat(path.join(folder, entry)).catch(() => null);
+        return info?.isFile() ? { id: idOf(info), path: path.join(folder, entry), info, current: false } : null;
+      }),
+  );
+  const list = earlier
+    .filter((version): version is Saved => version !== null)
+    .sort((a, b) => b.info.mtimeMs - a.info.mtimeMs);
+  return current?.isFile() ? [{ id: idOf(current), path: filePath, info: current, current: true }, ...list] : list;
+}
+
+// How many versions a file has: the current one, and the earlier ones.
+async function countVersions(name: string) {
+  const earlier = await readdir(path.join(VERSIONS_DIR, name)).catch(() => [] as string[]);
+  return 1 + earlier.filter((entry) => !entry.startsWith('.')).length;
+}
+
+// How the list (and a save) describes a file. `modified` is when it was last saved, as an
+// ISO date the client can put on its timeline; `version` is the current version's id.
+const entryOf = async (name: string, info: Stats) => ({
+  name,
+  type: typeOf(name),
+  size: info.size,
+  modified: info.mtime.toISOString(),
+  etag: etagOf(info),
+  version: idOf(info),
+  versions: await countVersions(name),
+});
+
+// GET /files → the name, type, size in bytes, last-changed time, ETag, current version and
+// number of versions of every file in FILES_DIR
 files.get('/', async (c) => {
   const entries = await readdir(FILES_DIR, { withFileTypes: true });
   const list = await Promise.all(
     entries
       .filter((entry) => entry.isFile() && !entry.name.startsWith('.'))
       .map(async (entry) => {
-        const info = await stat(path.join(FILES_DIR, entry.name));
-        // When the file was last saved, as an ISO date the client can put on its timeline.
-        return {
-          name: entry.name,
-          type: typeOf(entry.name),
-          size: info.size,
-          modified: info.mtime.toISOString(),
-          etag: etagOf(info),
-        };
+        // Gone already when it was replaced by a save in the meantime: then it's left out.
+        const info = await stat(path.join(FILES_DIR, entry.name)).catch(() => null);
+        return info ? entryOf(entry.name, info) : null;
       }),
   );
-  return c.json(list);
+  return c.json(list.filter((entry) => entry !== null));
 });
 
 // Image types sharp can resize without changing the format (SVG would become PNG,
@@ -89,20 +138,33 @@ const isCurrent = (header: string | undefined, etag: string) =>
   header?.split(',').some((tag) => tag.trim().replace(/^W\//, '') === etag.replace(/^W\//, '')) ?? false;
 
 // fetching a file by name: streamed from disk in chunks.
+// ?V=<id> gets one of its versions instead of the current one (the ids are in
+// GET /files/:name/versions).
 // ?w=800 streams a copy resized to that width instead (images only).
 // A Range header gets just those bytes back (206 Partial Content), which is how a video
 // player starts playing, and jumps around, without downloading the whole file first.
 files.get('/:name', async (c) => {
   const name = c.req.param('name');
-  // Only plain file names: blocks "../" tricks that would read files outside the folder.
-  if (name !== path.basename(name) || name.startsWith('.')) {
+  if (!isSafeName(name)) {
     return c.text('Invalid file name', 400);
+  }
+  const id = c.req.query('V');
+  if (id) {
+    const version = (await versionsOf(name)).find((saved) => saved.id === id);
+    if (!version) return c.text('No such version', 404);
+    return send(c, name, version.path, version.info);
   }
   const filePath = path.join(FILES_DIR, name);
   const info = await stat(filePath).catch(() => null);
   if (!info?.isFile()) {
     return c.text('File not found', 404);
   }
+  return send(c, name, filePath, info);
+});
+
+// Sends one version of a file (at `filePath`): whole, the part a Range header asks for, or
+// resized to fit ?w= and ?h=.
+async function send(c: Context, name: string, filePath: string, info: Stats) {
   // HEAD asks for the headers only. Opening the file for it would leave it open, unread.
   const headersOnly = c.req.method === 'HEAD';
   const etag = etagOf(info);
@@ -152,21 +214,34 @@ files.get('/:name', async (c) => {
   headers['Content-Length'] = String(info.size);
   if (headersOnly) return c.body(null, 200, headers);
   return c.body(Readable.toWeb(createReadStream(filePath)) as ReadableStream, 200, headers);
-});
+}
 
-// POST /files/:name/versions → saves the request's body as the file: the start of version
-// control (see PROJECT.md). To say what's meant, and so nothing is overwritten by accident:
-//   If-None-Match: *     adds a new file, and fails if one by that name is already there.
-//   If-Match: <its ETag> replaces the file, and fails if it changed since that version.
-// Either failure is 412 Precondition Failed, with the file's current ETag. The version a
-// save replaces isn't lost: it's moved to .versions/<name>/ (hidden from the list).
-files.post('/:name/versions', async (c) => {
+// GET /files/:name/versions → every version of the file, newest first: its id (for ?V=), size,
+// when it was saved, its ETag, and whether it's the current one.
+files.get('/:name/versions', async (c) => {
   const name = c.req.param('name');
-  if (name !== path.basename(name) || name.startsWith('.')) {
+  if (!isSafeName(name)) {
     return c.text('Invalid file name', 400);
   }
-  const filePath = path.join(FILES_DIR, name);
-  const current = await stat(filePath).catch(() => null);
+  const versions = await versionsOf(name);
+  if (versions.length === 0) return c.text('File not found', 404);
+  return c.json(
+    versions.map(({ id, info, current }) => ({
+      id,
+      size: info.size,
+      modified: info.mtime.toISOString(),
+      etag: etagOf(info),
+      current,
+    })),
+  );
+});
+
+// What a save has to say, so nothing is overwritten by accident:
+//   If-None-Match: *     adds a new file, and fails if one by that name is already there.
+//   If-Match: <its ETag> replaces the file, and fails if it changed since that version.
+// Either failure is 412 Precondition Failed, with the file's current ETag. Returns that
+// answer, or null when the save can go ahead.
+function refusal(c: Context, current: Stats | null) {
   const ifMatch = c.req.header('If-Match');
   if (c.req.header('If-None-Match') === '*') {
     if (current) return c.json({ error: 'exists', etag: etagOf(current) }, 412);
@@ -176,6 +251,52 @@ files.post('/:name/versions', async (c) => {
   } else {
     return c.text('Send If-None-Match: * to add a file, or If-Match: <its ETag> to replace one', 428);
   }
+  return null;
+}
+
+// Puts a new version in place: `incoming` (a finished upload, or a copy of an earlier
+// version) becomes the file, and the version it replaces moves to .versions/<name>/, so it's
+// never lost. `checked` is the version the save was checked against (null for a new file):
+// if another save got in since then, this one is refused instead, because its sender never
+// saw that version. Returns the file's details, or null when refused.
+async function commit(name: string, incoming: string, checked: Stats | null) {
+  const filePath = path.join(FILES_DIR, name);
+  const current = await stat(filePath).catch(() => null);
+  if ((current ? etagOf(current) : null) !== (checked ? etagOf(checked) : null)) {
+    await rm(incoming, { force: true });
+    return null;
+  }
+  if (current) {
+    const folder = path.join(VERSIONS_DIR, name);
+    await mkdir(folder, { recursive: true });
+    const when = current.mtime.toISOString().replace(/[:.]/g, '-'); // safe in a file name
+    let earlier = path.join(folder, `${when} ${name}`);
+    // Two versions saved in the same millisecond would share that name: never write over one.
+    if (await stat(earlier).catch(() => null)) earlier = path.join(folder, `${when} ${randomUUID()} ${name}`);
+    await rename(filePath, earlier);
+  }
+  await rename(incoming, filePath);
+  return stat(filePath);
+}
+
+// The answer when another save got in first (see commit), like refusal's.
+async function overtaken(c: Context, name: string, checked: Stats | null) {
+  const current = await stat(path.join(FILES_DIR, name)).catch(() => null);
+  if (!current) return c.json({ error: 'missing' }, 412);
+  return c.json({ error: checked ? 'changed' : 'exists', etag: etagOf(current) }, 412);
+}
+
+// POST /files/:name/versions → saves the request's body as the file's new version, or as a
+// new file (see refusal for the header that says which). The version a save replaces isn't
+// lost: it's moved to .versions/<name>/ (hidden from the list).
+files.post('/:name/versions', async (c) => {
+  const name = c.req.param('name');
+  if (!isSafeName(name)) {
+    return c.text('Invalid file name', 400);
+  }
+  const current = await stat(path.join(FILES_DIR, name)).catch(() => null);
+  const refused = refusal(c, current);
+  if (refused) return refused;
   const body = c.req.raw.body;
   if (!body) return c.text('There was no file in the request', 400);
 
@@ -188,19 +309,36 @@ files.post('/:name/versions', async (c) => {
     await rm(incoming, { force: true });
     return c.text('The upload was cut off', 400);
   }
-  if (current) {
-    const earlier = path.join(FILES_DIR, '.versions', name);
-    await mkdir(earlier, { recursive: true });
-    const when = current.mtime.toISOString().replace(/[:.]/g, '-'); // safe in a file name
-    await rename(filePath, path.join(earlier, `${when} ${name}`));
-  }
-  await rename(incoming, filePath);
+  const saved = await commit(name, incoming, current);
+  if (!saved) return overtaken(c, name, current);
+  return c.json(await entryOf(name, saved), 201);
+});
 
-  const info = await stat(filePath);
-  return c.json(
-    { name, type: typeOf(name), size: info.size, modified: info.mtime.toISOString(), etag: etagOf(info) },
-    201,
-  );
+// POST /files/:name/restore?V=<id> → makes an earlier version the current one again. It's
+// saved as a new version, a copy of that one, so the version it replaces is kept like any
+// other and nothing is lost. Takes If-Match (or If-None-Match: *), like a save.
+files.post('/:name/restore', async (c) => {
+  const name = c.req.param('name');
+  if (!isSafeName(name)) {
+    return c.text('Invalid file name', 400);
+  }
+  const current = await stat(path.join(FILES_DIR, name)).catch(() => null);
+  const refused = refusal(c, current);
+  if (refused) return refused;
+  const version = (await versionsOf(name)).find((saved) => saved.id === c.req.query('V'));
+  if (!version) return c.text('No such version', 404);
+  if (version.current) return c.text('That version is the current one already', 409);
+
+  // A copy, so the earlier version keeps its place in the history. On APFS it's a clone,
+  // which takes no space until one of them changes. Dated now, because restoring is a save
+  // like any other, and that time is also what gives the copy its own id.
+  const incoming = path.join(FILES_DIR, `.upload-${randomUUID()}`);
+  await copyFile(version.path, incoming, constants.COPYFILE_FICLONE);
+  const now = new Date();
+  await utimes(incoming, now, now);
+  const saved = await commit(name, incoming, current);
+  if (!saved) return overtaken(c, name, current);
+  return c.json(await entryOf(name, saved), 201);
 });
 
 //deleting a file by name

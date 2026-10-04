@@ -79,7 +79,12 @@ export default function Timeline({
             </header>
             <div className="prints">
               {day.files.map((file) => (
-                <Print key={file.name} file={file} selected={file.name === selected?.name} onSelect={onSelect} />
+                <Print
+                  key={`${file.name}@${file.version}`} // a new version is a new print: a video's frame loads again
+                  file={file}
+                  selected={file.name === selected?.name}
+                  onSelect={onSelect}
+                />
               ))}
             </div>
           </li>

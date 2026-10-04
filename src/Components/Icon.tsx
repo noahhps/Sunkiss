@@ -1,18 +1,37 @@
-// Line icons, drawn in the text colour. App.css sizes them where they're used.
-const PATHS = {
-  download: "M12 4v11M7 10l5 5 5-5M5 20h14",
-  check: "M5 12.5l4.5 4.5L19 7",
-  cross: "M7 7l10 10M17 7L7 17",
-  folder: "M3 7.5A1.5 1.5 0 0 1 4.5 6H9l2 2h8.5A1.5 1.5 0 0 1 21 9.5v8a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z",
-  open: "M14 5h5v5M19 5l-8 8M17 14v4a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1h4",
-  chevron: "M7 10l5 5 5-5",
-  upload: "M12 16V4M7 9l5-5 5 5M5 20h14",
+// Icons, drawn in the text colour, in two kinds. Anything with an inside (a folder, a stack,
+// an action) is a solid shape: filled, with the mark cut out of it. Marks with no inside
+// (arrows, a check, a cross) are glyphs: bold strokes. App.css sizes them where they're used,
+// and sets a glyph's weight there with --glyph-weight.
+const SOLID = {
+  download: "M12 2.5a9.5 9.5 0 1 0 0 19 9.5 9.5 0 0 0 0-19zM10.9 7.4h2.2v4.5h2.6L12 16.5l-3.7-4.6h2.6z",
+  upload: "M12 2.5a9.5 9.5 0 1 0 0 19 9.5 9.5 0 0 0 0-19zM13.1 16.6h-2.2v-4.5H8.3L12 7.5l3.7 4.6h-2.6z",
+  "check-circle": "M12 2.5a9.5 9.5 0 1 0 0 19 9.5 9.5 0 0 0 0-19zM8.8 10.7l2.1 2.1 4.3-4.3 1.8 1.8-6.1 6.1L7 12.5z",
+  "cross-circle":
+    "M12 2.5a9.5 9.5 0 1 0 0 19 9.5 9.5 0 0 0 0-19zM9.45 7.75 12 10.3l2.55-2.55 1.7 1.7L13.7 12l2.55 2.55-1.7 1.7L12 13.7l-2.55 2.55-1.7-1.7L10.3 12 7.75 9.45z",
+  folder: "M2.5 7a2 2 0 0 1 2-2h4.6a2 2 0 0 1 1.42.59L12 7h7.5a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-15a2 2 0 0 1-2-2z",
+  open: "M6 3.5h12A2.5 2.5 0 0 1 20.5 6v12a2.5 2.5 0 0 1-2.5 2.5H6A2.5 2.5 0 0 1 3.5 18V6A2.5 2.5 0 0 1 6 3.5zM10 8h6v6l-2.29-2.29-4.6 4.6-1.42-1.42 4.6-4.6z",
+  versions:
+    "M8 6.5V6a2.5 2.5 0 0 1 2.5-2.5H18A2.5 2.5 0 0 1 20.5 6v7.5a2.5 2.5 0 0 1-2.5 2.5h-.5V6.5zM6 8h7.5a2.5 2.5 0 0 1 2.5 2.5V18a2.5 2.5 0 0 1-2.5 2.5H6A2.5 2.5 0 0 1 3.5 18v-7.5A2.5 2.5 0 0 1 6 8z",
 };
 
-export default function Icon({ name, className }: { name: keyof typeof PATHS; className?: string }) {
+const GLYPHS = {
+  check: "M5 12.5l4.5 4.5L19 7",
+  cross: "M7 7l10 10M17 7L7 17",
+  chevron: "M7 10l5 5 5-5",
+  back: "M15 18l-6-6 6-6",
+  refresh: "M20 12a8 8 0 1 1-2.34-5.66L20 8.6M20 3.6v5h-5",
+  send: "M12 19V5M6 11l6-6 6 6",
+  "arrow-down": "M12 5v13M6.5 12.5 12 18l5.5-5.5",
+};
+
+export type IconName = keyof typeof SOLID | keyof typeof GLYPHS;
+
+export default function Icon({ name, className }: { name: IconName; className?: string }) {
+  const solid = name in SOLID;
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" className={className}>
-      <path d={PATHS[name]} />
+    <svg viewBox="0 0 24 24" aria-hidden="true" className={className} data-paint={solid ? "solid" : "glyph"}>
+      {/* evenodd, so a mark drawn inside a solid shape cuts out of it */}
+      <path d={solid ? SOLID[name as keyof typeof SOLID] : GLYPHS[name as keyof typeof GLYPHS]} fillRule="evenodd" />
     </svg>
   );
 }

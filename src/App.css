@@ -1,16 +1,20 @@
-/* Sunkiss's look, taken from Courier's QuickView: text sitting straight on the window's
-   frosted glass, faint "pill" controls with hairline edges, and one accent colour.
+/* Sunkiss's look, started from Courier's QuickView: text sitting straight on the window's
+   frosted glass, and one accent colour. Shapes are solid: controls, rows and panels are
+   fills rather than outlines, and icons are filled shapes or bold marks (Icon.tsx).
    The glass itself is a native macOS material (src-tauri/src/lib.rs); this sheet only
-   draws what's on top of it. The font is Sunkiss's own, not QuickView's DM Mono. */
+   draws what's on top of it. The font is Sunkiss's own, not QuickView's DM Mono: Inter,
+   bundled with the app (src/main.tsx). */
 
 :root {
   /* Dark first, as in QuickView; the light versions are below. */
   --ink: #f4f6fa;
   --dim: rgba(244, 246, 250, 0.62);
   --faint: rgba(244, 246, 250, 0.4);
-  --glass-strong: rgba(251, 251, 252, 0.219); /* the search box's lift off the glass */
+  /* Fills for solid shapes: --pill for controls and rows, stronger on hover, strongest for
+     what's selected. --edge is only for lines that aren't the edge of a shape. */
   --pill: rgba(255, 255, 255, 0.14);
   --pill-hover: rgba(255, 255, 255, 0.22);
+  --pill-strong: rgba(255, 255, 255, 0.3);
   --edge: rgba(255, 255, 255, 0.18);
   --accent: #4d7dfa;
   --accent-hover: #5d89ff;
@@ -19,20 +23,21 @@
   --radius: 18px;
   --ground: #262a31; /* only used outside the desktop app, where there's no glass */
   --sidebar-w: 180px;
+  /* The open file's stage: what's left of the window once the page's top padding, the
+     timeline, and the room kept for the search bar are taken out. Its history is as tall. */
+  --stage-height: max(240px, calc(92vh - 400px));
 
-  /* Liquid glass for the floating search bar (Courier's recipe from its sidebar): a
-     diagonal highlight rather than a flat wash, because real glass is curved. */
-  --liquid-fill: linear-gradient(
-    158deg,
-    rgba(255, 255, 255, 0.14) 0%,
-    rgba(255, 255, 255, 0.04) 42%,
-    rgba(255, 255, 255, 0.09) 100%
-  );
-  --liquid-shadow: 0 18px 40px -14px rgba(0, 0, 0, 0.55);
+  /* What floats over the page (the search bar, the buttons pinned along the top): solid
+     too, lifted off the page by its shadow, with the page blurred behind it. */
+  --float: rgba(255, 255, 255, 0.17);
+  --float-hover: rgba(255, 255, 255, 0.25);
+  --float-shadow: 0 18px 40px -14px rgba(0, 0, 0, 0.55);
+  /* The sidebar's panel, a shade darker than the page. */
+  --sidebar-fill: rgba(0, 0, 0, 0.16);
   /* Menus need to be read over anything, so their glass is mostly opaque. */
   --menu-fill: rgba(38, 41, 48, 0.86);
 
-  font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
+  font-family: "Inter Variable", Inter, Avenir, Helvetica, Arial, sans-serif;
   font-size: 16px;
   line-height: 24px;
   font-weight: 400;
@@ -50,20 +55,17 @@
     --ink: #0e1420;
     --dim: rgba(14, 20, 32, 0.62);
     --faint: rgba(14, 20, 32, 0.42);
-    --glass-strong: rgba(255, 255, 255, 0.3);
-    --pill: rgba(20, 23, 29, 0.06);
+    --pill: rgba(20, 23, 29, 0.07);
     --pill-hover: rgba(20, 23, 29, 0.12);
+    --pill-strong: rgba(20, 23, 29, 0.16);
     --edge: rgba(20, 23, 29, 0.1);
     --warn: #8a5a12;
     --ground: #eceef2;
-    /* White on a pale background has less to push against, so the glass needs more of it. */
-    --liquid-fill: linear-gradient(
-      158deg,
-      rgba(255, 255, 255, 0.62) 0%,
-      rgba(255, 255, 255, 0.34) 42%,
-      rgba(255, 255, 255, 0.5) 100%
-    );
-    --liquid-shadow: 0 18px 40px -16px rgba(20, 23, 29, 0.3);
+    /* On a pale page, what floats is white. */
+    --float: rgba(255, 255, 255, 0.86);
+    --float-hover: rgba(255, 255, 255, 0.97);
+    --float-shadow: 0 18px 40px -16px rgba(20, 23, 29, 0.3);
+    --sidebar-fill: rgba(20, 23, 29, 0.045);
     --menu-fill: rgba(250, 250, 252, 0.88);
   }
 }
@@ -130,7 +132,7 @@ textarea {
 
 button {
   padding: 0.45em 1.1em;
-  border: 1px solid var(--edge);
+  border: 1px solid transparent; /* a solid shape: the fill is its edge (the border keeps its size) */
   border-radius: 999px;
   background: var(--pill);
   cursor: pointer;
@@ -147,14 +149,17 @@ button:disabled {
 input:not([type="checkbox"]),
 select {
   padding: 0.55em 0.9em;
-  border: 1px solid var(--edge);
+  border: 1px solid transparent;
   border-radius: 12px;
-  background: var(--glass-strong);
+  background: var(--pill);
   outline: none;
+  transition: background 140ms ease, box-shadow 140ms ease;
 }
+/* Focused, a field fills in, with a soft accent halo to say where typing goes. */
 input:not([type="checkbox"]):focus,
 select:focus {
-  border-color: var(--accent);
+  background: var(--pill-hover);
+  box-shadow: 0 0 0 3px rgba(77, 125, 250, 0.35);
 }
 input::placeholder {
   color: var(--faint);
@@ -164,7 +169,21 @@ progress {
   accent-color: var(--accent);
 }
 
-/* The search box: QuickView's composer, floating above the page as a pane of liquid glass.
+/* Icons (Icon.tsx): solid shapes are filled; glyphs are bold strokes, as heavy as
+   --glyph-weight says where they're used. */
+svg[data-paint="solid"] {
+  fill: currentColor;
+  stroke: none;
+}
+svg[data-paint="glyph"] {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: var(--glyph-weight, 2.2);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* The search box: QuickView's composer, floating above the page as a solid pane.
    It stays put near the bottom, centred in the area right of the sidebar, while the page
    scrolls underneath it. */
 .composer {
@@ -180,28 +199,23 @@ progress {
   align-items: center;
   gap: 8px;
 }
-/* The liquid glass, shared by the search bar and the buttons that float over the page. */
+/* What floats over the page: the search bar, and the buttons pinned along the top. Solid
+   shapes with no rim: the fill and the shadow under it are the whole of it. */
 .composer,
-.back,
+.tool,
 .pill {
-  border: 1px solid rgba(255, 255, 255, 0.22);
+  border: 1px solid transparent;
   border-radius: 999px;
-  background: var(--liquid-fill);
+  background: var(--float);
   /* Blur what's behind it, and push its colour up rather than greying it out, so
      thumbnails passing underneath come through alive. */
   -webkit-backdrop-filter: blur(22px) saturate(170%) brightness(1.08);
   backdrop-filter: blur(22px) saturate(170%) brightness(1.08);
-  /* Bright edges where light would catch a curved pane, brightest on the leading
-     side; then a soft shadow so it reads as lifted off the page. */
-  box-shadow:
-    inset 1px 0 0 rgba(255, 255, 255, 0.55),
-    inset 0 1px 0 rgba(255, 255, 255, 0.42),
-    inset -1px 0 0 rgba(255, 255, 255, 0.16),
-    var(--liquid-shadow);
-  transition: border-color 140ms ease;
+  box-shadow: var(--float-shadow);
+  transition: background 140ms ease, box-shadow 140ms ease;
 }
 .composer:focus-within {
-  border-color: rgba(77, 125, 250, 0.7);
+  box-shadow: 0 0 0 3px rgba(77, 125, 250, 0.35), var(--float-shadow);
 }
 .composer input:not([type="checkbox"]) {
   flex: 1;
@@ -226,11 +240,7 @@ progress {
 .round svg {
   width: 15px;
   height: 15px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.7;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+  --glyph-weight: 2.2;
 }
 .send,
 .primary {
@@ -243,28 +253,41 @@ progress {
   background: var(--accent-hover);
 }
 .send svg {
-  stroke-width: 2;
+  --glyph-weight: 2.5;
 }
 
-/* Back to the grid, pinned to the top left of the page: clear of the sidebar, and below
-   the strip the window is dragged by. */
-.back {
+/* Pinned to the top left of the page, clear of the sidebar and below the strip the window is
+   dragged by, as in a browser: back to the grid (while a file is open), and refresh. */
+.toolbar {
   position: fixed;
   z-index: 20;
   top: 40px;
   left: calc(var(--sidebar-w) + 20px);
+  display: flex;
+  gap: 8px;
+}
+.tool {
   width: 34px;
   height: 34px;
 }
-.back:hover:not(:disabled),
+.tool:hover:not(:disabled),
 .pill:hover:not(:disabled) {
-  background: var(--liquid-fill); /* keeps the glass; only the rim catches more light */
-  border-color: rgba(255, 255, 255, 0.45);
+  background: var(--float-hover);
 }
-.back svg {
+.tool svg {
   width: 16px;
   height: 16px;
-  stroke-width: 2;
+  --glyph-weight: 2.5;
+}
+/* While the list is on its way, the arrow turns. RefreshButton.tsx lets it finish the turn
+   it's on, so it never snaps back. */
+.refresh[data-turning] svg {
+  animation: turn 800ms cubic-bezier(0.45, 0.05, 0.35, 1) infinite;
+}
+@keyframes turn {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* The file's actions, top right, opposite the back button: Show in Finder, Open in…, and
@@ -277,7 +300,7 @@ progress {
   display: flex;
   gap: 8px;
 }
-/* A glass pill with an icon and a label. */
+/* A solid pill with an icon and a label. */
 .pill {
   height: 34px;
   box-sizing: border-box;
@@ -291,15 +314,11 @@ progress {
 .pill svg,
 .badge svg {
   flex: none;
-  fill: none;
-  stroke: currentColor;
-  stroke-linecap: round;
-  stroke-linejoin: round;
 }
 .pill svg {
-  width: 14px;
-  height: 14px;
-  stroke-width: 2;
+  width: 15px;
+  height: 15px;
+  --glyph-weight: 2.5;
 }
 /* "Open in Photoshop" and its arrow: one pill in two parts. */
 .split {
@@ -310,7 +329,7 @@ progress {
   padding-right: 11px;
 }
 .split > .more {
-  margin-left: -1px; /* the two halves share a border */
+  margin-left: 2px; /* a sliver of the page between the two halves */
   padding: 0 9px;
   border-radius: 0 999px 999px 0;
 }
@@ -318,6 +337,7 @@ progress {
   width: 11px;
   height: 11px;
   color: var(--dim);
+  --glyph-weight: 3;
 }
 .split .label {
   max-width: 170px;
@@ -345,7 +365,7 @@ progress {
 .download[data-status="downloading"]:hover:not(:disabled) {
   background:
     linear-gradient(90deg, rgba(77, 125, 250, 0.38) var(--progress), transparent 0),
-    var(--liquid-fill);
+    var(--float);
 }
 .download[data-status="kept"] .at-rest {
   color: var(--accent);
@@ -379,12 +399,11 @@ progress {
   display: flex;
   flex-direction: column;
   gap: 1px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 12px;
   background: var(--menu-fill);
   -webkit-backdrop-filter: blur(22px) saturate(170%);
   backdrop-filter: blur(22px) saturate(170%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), var(--liquid-shadow);
+  box-shadow: var(--float-shadow);
 }
 .menu button {
   display: flex;
@@ -469,6 +488,10 @@ progress {
   .tilt-card {
     transition: none;
   }
+  /* Breathes instead of turning (and still says when the answer is in). */
+  .refresh[data-turning] svg {
+    animation: breathe 1.4s ease-in-out infinite;
+  }
 }
 
 /* Previews and thumbnails --------------------------------------------------- */
@@ -483,14 +506,30 @@ progress {
   border-radius: 10px;
   box-shadow: 0 12px 32px -12px rgba(0, 0, 0, 0.55);
 }
-/* In the timeline view the file gets a stage of fixed height, so the timeline beneath it
-   stays put as each one loads, whatever its shape. */
+/* In the timeline view the file gets a stage of fixed height (--stage-height), so the
+   timeline beneath it stays put as each one loads, whatever its shape. */
 .stage {
-  /* What's left of the window once the page's top padding, the timeline, and the room
-     kept for the search bar are taken out. */
-  --stage-height: max(240px, calc(92vh - 400px));
+  position: relative;
   height: var(--stage-height);
   align-items: center;
+}
+/* Over the top of the stage while an earlier version is on it, so it isn't taken for the
+   current one. */
+.stage-label {
+  position: absolute;
+  z-index: 2;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 2px 12px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.55);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  color: #fff;
+  font-size: 12px;
+  white-space: nowrap;
 }
 .stage :is(img, video) {
   max-height: var(--stage-height);
@@ -595,7 +634,7 @@ progress {
 .badge svg {
   width: 10px;
   height: 10px;
-  stroke-width: 3;
+  --glyph-weight: 3.4;
 }
 .badge[data-status="downloading"] {
   animation: breathe 1.4s ease-in-out infinite;
@@ -613,6 +652,26 @@ progress {
   line-height: 14px;
   font-variant-numeric: tabular-nums;
 }
+/* How many versions the file has, in the top corner opposite the session badge. */
+.versions-badge {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 4px 0 3px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 9.5px;
+  line-height: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.versions-badge svg {
+  width: 9px;
+  height: 9px;
+}
 .caption {
   max-width: 200px;
   overflow: hidden;
@@ -621,6 +680,181 @@ progress {
   font-size: 10.5px;
   letter-spacing: 0.04em;
   color: var(--dim);
+}
+
+/* An open file and its history ---------------------------------------------- */
+
+/* The stage, with the file's history beside it. */
+.file-view {
+  --history-w: 220px;
+  --history-gap: 24px;
+  /* Clear of the buttons pinned along the top, whatever the window's height. */
+  margin-top: max(24px, calc(88px - 8vh));
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--history-w);
+  gap: var(--history-gap);
+  align-items: start;
+}
+.file-view .stage {
+  margin-top: 0;
+}
+/* Narrower by the history beside it. */
+.file-view .tilt-card img {
+  max-width: min(calc(100vw - var(--sidebar-w) - 96px - var(--history-w) - var(--history-gap)), 800px);
+}
+
+/* The history (VersionTree.tsx), in the sidebar's style: straight on the glass, the version
+   on the stage in a pill. As tall as the stage; the list scrolls. */
+.versions {
+  height: var(--stage-height);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  border-radius: 14px;
+  text-align: left;
+  transition: background 140ms ease;
+}
+/* A file being dragged over, to go in as the next version: the history fills with the accent. */
+.versions[data-over] {
+  background: rgba(77, 125, 250, 0.16);
+}
+.versions-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+  padding: 0 8px;
+}
+.versions-head h2 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 22px;
+}
+.versions-head span {
+  font-size: 11.5px;
+  color: var(--faint);
+}
+.versions :is(.waiting, .error) {
+  margin: 4px 8px;
+  font-size: 12px;
+}
+.version-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.version {
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 8px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: none;
+  text-align: left;
+}
+.version:hover:not(:disabled) {
+  background: var(--pill);
+}
+.version[aria-current] {
+  background: var(--pill-strong);
+}
+.version-thumb {
+  flex: none;
+  width: 38px;
+  height: 38px;
+  object-fit: cover;
+  border-radius: 6px;
+  background: var(--pill);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+.version-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 17px;
+}
+.version-when {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12.5px;
+  font-weight: 500;
+}
+.version[data-current] .version-when {
+  color: var(--accent);
+}
+.version-meta {
+  font-size: 11px;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+/* Under the earlier version that's on the stage. */
+.restore {
+  margin: 4px 0 6px 56px;
+  padding: 3px 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+/* Choose a file (or drop one on the history) to save as the next version. A solid button
+   that fills with the accent from the left as it goes, like Download. */
+.new-version {
+  flex: none;
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  background: linear-gradient(90deg, rgba(77, 125, 250, 0.38) var(--progress, 0%), var(--surface, var(--pill)) 0);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
+.new-version:hover:not(:disabled) {
+  --surface: var(--pill-hover);
+}
+.versions[data-over] .new-version {
+  background: var(--accent);
+  color: #fff;
+}
+.new-version[data-status="sending"]:disabled {
+  opacity: 1;
+  cursor: progress;
+}
+.new-version svg {
+  flex: none;
+  width: 15px;
+  height: 15px;
+}
+.versions-note {
+  margin: 8px 8px 0;
+  font-size: 12px;
+  line-height: 17px;
+  color: var(--warn);
+}
+/* In a narrow window the history goes under the stage. */
+@media (max-width: 760px) {
+  .file-view {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .versions {
+    height: auto;
+    max-height: 240px;
+  }
+  .file-view .tilt-card img {
+    max-width: min(calc(100vw - var(--sidebar-w) - 96px), 800px);
+  }
 }
 
 /* Timeline ----------------------------------------------------------------- */
@@ -712,43 +946,35 @@ progress {
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  border: 1.5px dashed var(--edge);
   border-radius: var(--radius);
   background: var(--pill);
   cursor: pointer;
   transition:
     transform 420ms cubic-bezier(0.34, 1.56, 0.64, 1),
-    border-color 140ms ease,
-    background 140ms ease;
+    background 140ms ease,
+    box-shadow 140ms ease;
 }
-.dropzone:hover,
+.dropzone:hover {
+  background: var(--pill-hover);
+}
 .dropzone:focus-visible {
-  border-color: var(--dim);
   outline: none;
+  box-shadow: 0 0 0 3px rgba(77, 125, 250, 0.35);
 }
+/* A file over it: it fills with the accent. */
 .dropzone[data-over] {
   transform: scale(1.025);
-  border-color: var(--accent);
-  background: rgba(77, 125, 250, 0.12);
+  background: rgba(77, 125, 250, 0.22);
 }
+/* The upload mark, solid, in the accent colour. */
 .drop-icon {
-  width: 34px;
-  height: 34px;
   margin-bottom: 6px;
-  display: grid;
-  place-items: center;
-  border: 1px solid var(--edge);
-  border-radius: 10px;
-  background: var(--glass-strong);
+  display: flex;
+  color: var(--accent);
 }
 .drop-icon svg {
-  width: 16px;
-  height: 16px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+  width: 38px;
+  height: 38px;
 }
 .dropzone strong {
   font-size: 14px;
@@ -759,40 +985,48 @@ progress {
   color: var(--faint);
 }
 
-/* One row per file, springing in as it's added. */
+/* One line per file, springing in as it's added: its type, its name, how it's going, and
+   what can be done about it. A file being sent fills in the row's bottom edge. */
 .uploads {
   margin: 16px 0 0;
   padding: 0;
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
   text-align: left;
 }
 .upload {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 10px 10px 14px;
-  border: 1px solid var(--edge);
-  border-radius: 12px;
+  gap: 8px;
+  padding: 5px 6px 5px 8px;
+  border: 1px solid transparent;
+  border-radius: 9px;
   background: var(--pill);
+  line-height: 22px;
   animation: spring-in 520ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 @keyframes spring-in {
   from {
     opacity: 0;
-    transform: translateY(10px) scale(0.97);
+    transform: translateY(6px) scale(0.97);
   }
 }
 .upload-text {
   flex: 1;
   min-width: 0;
+  overflow: hidden; /* in a very narrow window, what doesn't fit goes rather than under the buttons */
   display: flex;
-  flex-direction: column;
-  gap: 3px;
+  align-items: center;
+  gap: 8px;
 }
+/* In a narrow window the name gives way first (1000 to 1), down to a few letters, and only
+   then the status. Both end in an ellipsis, and say the rest on hover. */
 .upload-name {
+  flex: 0 1000 auto;
+  min-width: 2.5em;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -800,34 +1034,37 @@ progress {
   font-weight: 500;
 }
 .upload-meta {
-  display: flex;
-  align-items: center;
-  gap: 5px;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 11.5px;
   color: var(--dim);
   font-variant-numeric: tabular-nums;
 }
 .upload-meta svg {
+  margin-right: 4px;
+  vertical-align: -2px;
   width: 12px;
   height: 12px;
-  fill: none;
-  stroke: #2f9e5b;
-  stroke-width: 3;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+  color: #2f9e5b;
 }
 .upload:is([data-status="exists"], [data-status="failed"]) .upload-meta {
   color: var(--warn);
 }
+/* Along the straight part of the row's bottom edge, filling in as the file goes. */
 .upload-progress {
-  height: 3px;
-  overflow: hidden;
-  border-radius: 2px;
-  background: var(--edge);
+  position: absolute;
+  left: 9px;
+  right: 9px;
+  bottom: -1px;
+  height: 2px;
 }
 .upload-progress > span {
   display: block;
   height: 100%;
+  border-radius: 1px;
   background: var(--accent);
   transition: width 120ms linear;
 }
@@ -835,43 +1072,36 @@ progress {
   flex: none;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
+}
+.upload-actions:empty {
+  display: none;
 }
 .upload-actions button:not(.round) {
-  padding: 4px 11px;
-  font-size: 12px;
+  padding: 0 9px;
+  font-size: 11.5px;
+  line-height: 20px;
 }
 .upload-actions .round {
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
+}
+.upload-actions .round svg {
+  width: 12px;
+  height: 12px;
+  --glyph-weight: 2.8;
 }
 
-/* A file icon, with its type on a coloured tag over the corner. */
-.glyph {
-  position: relative;
+/* A file's type, on a tag coloured by kind (Upload.tsx's BADGES). */
+.type-tag {
   flex: none;
-  width: 28px;
-  height: 34px;
-}
-.glyph svg {
-  width: 28px;
-  height: 34px;
-  fill: rgba(255, 255, 255, 0.92);
-  stroke: rgba(20, 23, 29, 0.16);
-}
-.glyph .fold {
-  fill: rgba(20, 23, 29, 0.08);
-}
-.glyph-badge {
-  position: absolute;
-  left: -5px;
-  bottom: 6px;
-  padding: 0 4px;
-  border-radius: 4px;
-  font-size: 8px;
+  width: 34px;
+  border-radius: 5px;
+  font-size: 9px;
   font-weight: 700;
-  line-height: 13px;
-  letter-spacing: 0.02em;
+  line-height: 16px;
+  letter-spacing: 0.03em;
+  text-align: center;
   color: #fff;
 }
 
@@ -883,8 +1113,10 @@ progress {
   gap: 12px;
 }
 .kiss {
+  flex: none;
   padding: 0.55em 1.5em;
   font-weight: 600;
+  white-space: nowrap;
 }
 
 /* The uploaded images, as a band of strips (Carousel.tsx): the one under the pointer opens
@@ -944,7 +1176,7 @@ progress {
 
 /* Sidebar ------------------------------------------------------------------ */
 
-/* Sits straight on the glass like QuickView's conversation: no fill of its own. */
+/* A solid panel down the left, a shade darker than the page, rather than a line between them. */
 .sidebar {
   position: sticky;
   top: 0;
@@ -956,7 +1188,7 @@ progress {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  border-right: 1px solid var(--edge);
+  background: var(--sidebar-fill);
 }
 .brand {
   display: flex;
@@ -986,7 +1218,6 @@ progress {
   color: var(--ink);
 }
 .nav-link[aria-current="page"] {
-  border-color: var(--edge);
-  background: var(--pill);
+  background: var(--pill-strong);
   color: var(--ink);
 }

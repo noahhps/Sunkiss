@@ -175,12 +175,13 @@ A save creates a blob, if the bytes are new, plus a new row in versions.
 | Route | What it does |
 |---|---|
 | `GET /health` | Is the server up? |
-| `GET /files` | List files: name, type, current version, preview URL |
+| `GET /files` | List files: name, type, size, ETag, current version id, number of versions |
 | `GET /files/:name` | The current version, streamed, with an `ETag` header |
 | `GET /files/:name?w=400` | A resized preview |
-| `GET /files/:name/versions` | Version history |
-| `GET /files/:name/versions/:id` | One specific version |
+| `GET /files/:name/versions` | Version history, newest first: id, size, when saved, ETag, whether current |
+| `GET /files/:name?V=<id>` | One specific version (works with `?w=` and Range too) |
 | `POST /files/:name/versions` | Save. Body: the bytes. `If-Match`: the version you started from. Returns `201 { version, conflict }` |
+| `POST /files/:name/restore?V=<id>` | Make an earlier version current again, saved as a new version (`If-Match`, like a save) |
 | `POST /files/:name/resolve` | Pick which version wins a conflict |
 | `DELETE /files/:name` | Delete (or archive) a file |
 | `GET /events` | Live stream of changes (Server-Sent Events) |
@@ -201,9 +202,23 @@ A save creates a blob, if the bytes are new, plus a new row in versions.
 ### 2. Upload and versions
 - [ ] `server/src/storage.ts`: `BlobStore` and `DiskStore` (hash names, subfolders, write to a temp file then rename)
 - [ ] SQLite + Drizzle: `files` and `versions` tables
-- [ ] `POST /files/:name/versions` with `If-Match` / `ETag`
-- [ ] `GET /files/:name/versions` history
-- [ ] App: drag and drop to upload; a version timeline
+- [x] `POST /files/:name/versions`: `If-None-Match: *` adds a file, `If-Match: <ETag>` saves a new
+      version; either answers `412` if that's not true any more. Written to a temporary file, then
+      renamed into place. For now the replaced version is just moved to `.versions/<name>/`, until
+      the `BlobStore` and the `versions` table exist
+- [x] `GET /files/:name/versions` history, `GET /files/:name?V=<id>` for one version, and
+      `POST /files/:name/restore?V=<id>`. For now a version is a file: the current one in
+      `files/`, earlier ones in `.versions/<name>/`, and a version's id is its ETag without the
+      quotes (size and modified time, which a version keeps when it moves). Restoring copies the
+      version (an APFS clone, so no extra space) and saves it like any other save. A save that
+      another save overtook while uploading is refused (`412`) instead of replacing a version its
+      sender never saw
+- [x] App: drag and drop to upload (the Upload screen: "Kiss it in"; Keep both or Replace when a
+      name is taken; this session's images in a carousel, three at a time)
+- [x] App: the file's history beside the stage (`VersionTree.tsx`): every version with a
+      thumbnail, pick one to see it, restore it, or save a new version (choose a file, or drop
+      one on the history). Prints show how many versions a file has. A Refresh button, top left,
+      loads the list again
 
 ### 3. Conflicts
 - [ ] Detect a save based on an old version: keep both, return `conflict: true`
@@ -212,7 +227,8 @@ A save creates a blob, if the bytes are new, plus a new row in versions.
 
 ### 4. Live updates
 - [ ] `GET /events` with `streamSSE`
-- [ ] App: `EventSource`, refetch when something changes, show "Updated by …"
+- [ ] App: `EventSource`, refetch when something changes, show "Updated by …" (until then, the
+      Refresh button)
 
 ### 5. Compare
 - [ ] Side by side, an overlay slider, and a pixel diff (`pixelmatch`)

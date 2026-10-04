@@ -1,8 +1,20 @@
 {
   "name": "sunkiss",
-  "private": true,
   "version": "0.1.0",
+  "private": true,
+  "description": "This template should help get you started developing with Tauri, React and Typescript in Vite.",
+  "homepage": "https://github.com/noahhps/Sunkiss#readme",
+  "bugs": {
+    "url": "https://github.com/noahhps/Sunkiss/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/noahhps/Sunkiss.git"
+  },
+  "license": "ISC",
+  "author": "",
   "type": "module",
+  "main": "index.js",
   "workspaces": [
     "server"
   ],
@@ -15,6 +27,7 @@
   },
   "dependencies": {
     "@crabnebula/tauri-plugin-drag": "^2.1.0",
+    "@fontsource-variable/inter": "^5.3.0",
     "@react-navigation/drawer": "^7.13.10",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-opener": "^2",
