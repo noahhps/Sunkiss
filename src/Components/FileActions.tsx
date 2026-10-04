@@ -1,46 +1,35 @@
 import { useEffect, useRef, useState } from "react";
-import { openUrl } from "@tauri-apps/plugin-opener";
-import { IN_DESKTOP_APP, type FileEntry } from "../api";
-import { snapshotFigma } from "../figma";
+import type { FileEntry } from "../api";
+import { openFigma, snapshotFigma } from "../figma";
 import { appsFor, openIn, showInFinder, useDriveFolder, type App } from "../drive";
 import { kindOf, useChosenApp } from "../preferences";
-import { toggleStar, useIsStarred } from "../stars";
 import DownloadButton from "./DownloadButton";
 import Icon from "./Icon";
 
-// The file's actions, top right on the stage, opposite the back button. Show in Finder and
-// Open in… use the file in the Sunkiss drive (~/Sunkiss), so they only appear in the desktop
-// app, once the drive is mounted. Star and Download are always there. A file snapshotted from
-// Figma can be opened there, and snapshotted again (`onUpdated` gets it as it is then).
+// The file's actions, top right on the stage, opposite the back button. Open in… holds every
+// way out: the apps on this Mac that can open the file (through the Sunkiss drive, ~/Sunkiss,
+// so only in the desktop app once it's mounted), Finder, and Figma for a snapshot. A snapshot
+// can also be asked of Figma again (`onUpdated` gets the file as it is then). Download is
+// always there. The star is on the picture itself (Stage.tsx).
 export default function FileActions({ file, onUpdated }: { file: FileEntry; onUpdated?: (file: FileEntry) => void }) {
   const folder = useDriveFolder();
+  const linked = file.link?.source === "figma";
 
   return (
     <div className="file-actions">
-      {file.link?.source === "figma" && <FigmaActions file={file} onUpdated={onUpdated} />}
-      {folder && (
-        <>
-          <button type="button" className="pill" title="Show in Finder" onClick={() => void showInFinder(file)}>
-            <Icon name="folder" />
-            <span className="label">Show in Finder</span>
-          </button>
-          <OpenIn file={file} />
-        </>
-      )}
-      <StarButton file={file} />
+      {(folder || linked) && <OpenIn file={file} />}
+      {linked && <SnapshotAgain file={file} onUpdated={onUpdated} />}
       <DownloadButton file={file} />
     </div>
   );
 }
 
-// Open the frame in Figma, or ask Figma to render it again: the new render is the file's next
-// version, so what changed in Figma since shows in the history and the compare view.
-function FigmaActions({ file, onUpdated }: { file: FileEntry; onUpdated?: (file: FileEntry) => void }) {
+// Ask Figma to render the frame again: the new render is the file's next version, so what
+// changed in Figma since shows in the history and the compare view.
+function SnapshotAgain({ file, onUpdated }: { file: FileEntry; onUpdated?: (file: FileEntry) => void }) {
   const link = file.link!;
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-
-  const open = () => (IN_DESKTOP_APP ? void openUrl(link.url) : void window.open(link.url, "_blank", "noopener"));
 
   async function again() {
     setBusy(true);
@@ -57,50 +46,31 @@ function FigmaActions({ file, onUpdated }: { file: FileEntry; onUpdated?: (file:
   }
 
   return (
-    <>
-      <button type="button" className="pill" title={`Open ${link.nodeName} in Figma`} onClick={open}>
-        <Icon name="open" />
-        <span className="label">Open in Figma</span>
-      </button>
-      <button
-        type="button"
-        className="pill"
-        data-status={message ? "failed" : busy ? "busy" : undefined}
-        disabled={busy}
-        title={message ?? "Ask Figma to render this frame again, as the next version"}
-        onClick={() => void again()}
-      >
-        <Icon name="refresh" />
-        <span className="label">{busy ? "Rendering in Figma…" : message ? `${message} · Try again` : "Snapshot again"}</span>
-      </button>
-    </>
-  );
-}
-
-// Stars the file, to keep it close (stars.ts); the grid can show only starred files.
-function StarButton({ file }: { file: FileEntry }) {
-  const starred = useIsStarred(file.name);
-  return (
     <button
       type="button"
-      className="pill star-pill"
-      aria-pressed={starred}
-      title={starred ? "Take the star off" : "Star this file"}
-      onClick={() => toggleStar(file.name)}
+      className="pill"
+      data-status={message ? "failed" : busy ? "busy" : undefined}
+      disabled={busy}
+      title={message ?? "Ask Figma to render this frame again, as the next version"}
+      onClick={() => void again()}
     >
-      <Icon name="star" />
-      <span className="label">{starred ? "Starred" : "Star"}</span>
+      <Icon name="refresh" />
+      <span className="label">{busy ? "Rendering in Figma…" : message ? `${message} · Try again` : "Snapshot again"}</span>
     </button>
   );
 }
 
 // "Open in Photoshop": opens the file in the app chosen for its kind in Settings, or else in
-// its default app. The arrow beside it lists every app on this Mac that can open the file.
+// its default app. The arrow beside it lists every app on this Mac that can open the file,
+// then Finder, and Figma for a snapshot. Without the drive (a plain browser) there are no apps,
+// so for a snapshot the button itself opens Figma.
 function OpenIn({ file }: { file: FileEntry }) {
+  const folder = useDriveFolder();
   const chosen = useChosenApp(kindOf(file));
   const [apps, setApps] = useState<App[] | null>(null); // the file's apps, once macOS has said
   const [menuOpen, setMenuOpen] = useState(false);
   const area = useRef<HTMLDivElement>(null);
+  const link = file.link?.source === "figma" ? file.link : null;
 
   // Ask which apps can open this file (for the default's name, and the menu). Opening another
   // file closes the menu.
@@ -108,13 +78,17 @@ function OpenIn({ file }: { file: FileEntry }) {
     let current = true;
     setMenuOpen(false);
     setApps(null);
+    if (!folder) {
+      setApps([]);
+      return;
+    }
     appsFor(file)
       .then((list) => current && setApps(list))
       .catch(() => current && setApps([]));
     return () => {
       current = false;
     };
-  }, [file.name]);
+  }, [file.name, folder]);
 
   // Clicking anywhere else, or pressing Escape, closes it too.
   useEffect(() => {
@@ -132,11 +106,13 @@ function OpenIn({ file }: { file: FileEntry }) {
   }, [menuOpen]);
 
   const target = chosen ?? apps?.find((app) => app.default);
-  const label = target ? `Open in ${target.name}` : "Open";
+  const label = folder ? (target ? `Open in ${target.name}` : "Open") : "Open in Figma";
+  const go = () => (folder ? void openIn(file, chosen) : link && openFigma(link.url));
+  const extras = (folder ? 1 : 0) + (link ? 1 : 0); // Finder, Figma
 
   return (
     <div className="open-in split" ref={area}>
-      <button type="button" className="pill" title={label} onClick={() => void openIn(file, chosen)}>
+      <button type="button" className="pill" title={label} onClick={go}>
         <Icon name="open" />
         <span className="label">{label}</span>
       </button>
@@ -153,7 +129,7 @@ function OpenIn({ file }: { file: FileEntry }) {
       </button>
       {menuOpen && apps && (
         <div className="menu fade-in" role="menu">
-          {apps.length === 0 && <p className="menu-note">Nothing on this Mac opens this kind of file</p>}
+          {folder && apps.length === 0 && <p className="menu-note">Nothing on this Mac opens this kind of file</p>}
           {apps.map((app) => (
             <button
               key={app.path}
@@ -168,6 +144,32 @@ function OpenIn({ file }: { file: FileEntry }) {
               {app.default && <span className="tag">Default</span>}
             </button>
           ))}
+          {extras > 0 && (folder ? apps.length > 0 : false) && <hr />}
+          {folder && (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setMenuOpen(false);
+                void showInFinder(file);
+              }}
+            >
+              Show in Finder
+            </button>
+          )}
+          {link && (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setMenuOpen(false);
+                openFigma(link.url);
+              }}
+            >
+              Open in Figma
+              <span className="tag">{link.nodeName}</span>
+            </button>
+          )}
         </div>
       )}
     </div>

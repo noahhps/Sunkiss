@@ -1,0 +1,125 @@
+/* ══ Magnet menu ═════════════════════════════════════════════
+   A cluster of round chips at the pointer (MagnetMenu.tsx). The
+   veil behind it catches the click that closes it. */
+.magnet-veil {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  outline: none;
+}
+
+.magnet {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+
+/* a slot is WHERE a chip sits: at the origin, moved out to its
+   place with a spring, and later by a beat for the far ones */
+.mag-slot {
+  position: absolute;
+  left: calc(var(--chip, 44px) / -2);
+  top: calc(var(--chip, 44px) / -2);
+  width: var(--chip, 44px);
+  height: var(--chip, 44px);
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  transition: translate 420ms cubic-bezier(0.34, 1.5, 0.64, 1), opacity 180ms ease;
+  animation: mag-in 460ms cubic-bezier(0.34, 1.5, 0.64, 1) backwards;
+  animation-delay: inherit;
+}
+.mag-slot:hover:not(:disabled) {
+  background: none;
+}
+/* a new chip grows out from where its cluster opened: the origin, or its hub */
+@keyframes mag-in {
+  from {
+    translate: var(--from, 0px 0px);
+    scale: 0;
+  }
+}
+
+/* the chip is the LOOK: a glass disc with a mark on it; it swells
+   as the magnet, tips when shoved, and leans toward the pointer */
+.mag-chip {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: var(--float);
+  -webkit-backdrop-filter: blur(22px) saturate(170%) brightness(1.08);
+  backdrop-filter: blur(22px) saturate(170%) brightness(1.08);
+  box-shadow: var(--float-shadow), inset 0 0 0 1px var(--edge);
+  color: var(--ink);
+  transition:
+    scale 420ms cubic-bezier(0.34, 1.5, 0.64, 1),
+    rotate 420ms cubic-bezier(0.34, 1.5, 0.64, 1),
+    background 140ms ease,
+    color 140ms ease;
+  transition-delay: inherit;
+}
+.mag-chip svg {
+  width: 18px;
+  height: 18px;
+  --glyph-weight: 2.5;
+}
+.mag-text {
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+/* the magnet: filled with the accent, as what you can do */
+.mag-slot[data-magnet] .mag-chip {
+  background: var(--accent);
+  color: #fff;
+}
+/* a chip that's on (a star that's set) carries the orange of what's chosen */
+.mag-slot[aria-pressed="true"]:not([data-magnet]) .mag-chip {
+  color: var(--sun);
+}
+/* the hub of an open second cluster: chosen, so orange, and a little bigger */
+.mag-slot[data-hub] .mag-chip {
+  background: var(--sun);
+  color: #fff;
+  scale: 1.22;
+}
+/* the rest of the first cluster steps back while the second is open */
+.mag-slot[data-dim] {
+  opacity: 0.35;
+  pointer-events: none;
+}
+.mag-slot[data-dim] .mag-chip {
+  scale: 0.82;
+}
+
+/* what the chip under the pointer does, under it */
+.mag-label {
+  position: absolute;
+  left: 0;
+  top: 0;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--menu-fill);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  box-shadow: var(--float-shadow);
+  font-size: 12px;
+  line-height: 16px;
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translate(-50%, 0);
+  transition: translate 420ms cubic-bezier(0.34, 1.5, 0.64, 1);
+  animation: fade-in 160ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mag-slot,
+  .mag-chip,
+  .mag-label {
+    transition: none;
+    animation: none;
+  }
+}

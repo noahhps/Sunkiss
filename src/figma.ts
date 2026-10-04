@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from "react";
-import { SERVER, type FileEntry } from "./api";
+import { openUrl } from "@tauri-apps/plugin-opener";
+import { IN_DESKTOP_APP, SERVER, type FileEntry } from "./api";
 
 // Figma files live in Figma, so Sunkiss keeps snapshots of them: the server asks Figma to render
 // the frames you pick and saves each as a PNG here, a new version each time (server/src/routes/
@@ -37,6 +38,13 @@ const subscribe = (listener: () => void) => {
 
 /** The Figma token, kept current. */
 export const useFigmaToken = () => useSyncExternalStore(subscribe, () => token);
+
+/** Opens a Figma link in Figma (the browser, or the Figma app if it takes the link): in the
+ * desktop app through the system, elsewhere in a new tab. */
+export const openFigma = (url: string) => {
+  if (IN_DESKTOP_APP) void openUrl(url);
+  else window.open(url, "_blank", "noopener");
+};
 
 /** Whether a link points at a Figma file (figma.com/design/…, /file/, /board/, /proto/). */
 export const looksLikeFigma = (url: string) => /^https?:\/\/(www\.)?figma\.com\/(file|design|board|proto|slides)\//.test(url.trim());

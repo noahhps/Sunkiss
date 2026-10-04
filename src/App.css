@@ -425,9 +425,6 @@ svg[data-paint="glyph"] {
     padding: 0 10px;
   }
 }
-.star-pill[aria-pressed="true"] {
-  color: var(--sun);
-}
 .download {
   font-variant-numeric: tabular-nums; /* the numbers don't jitter as they count up */
 }
@@ -509,6 +506,13 @@ svg[data-paint="glyph"] {
   margin: 6px 10px;
   font-size: 12px;
   color: var(--dim);
+}
+/* Between the apps and the other ways out (Finder, Figma). */
+.menu hr {
+  margin: 4px 6px;
+  border: none;
+  height: 1px;
+  background: var(--edge);
 }
 
 .option {
@@ -790,6 +794,7 @@ svg[data-paint="glyph"] {
 /* The tilt on a focused image (Tilt.tsx). The card leans by --rx and --ry; the sheen puts
    light where the pointer is (--x, --y) and shade in the opposite corner. */
 .tilt {
+  position: relative; /* what's pinned to its corner stays put as the card leans */
   perspective: 800px;
   display: flex;
 }
@@ -811,6 +816,39 @@ svg[data-paint="glyph"] {
   display: block;
   max-width: min(calc(100vw - var(--sidebar-w) - 96px), 800px);
   box-shadow: none; /* the card has it */
+}
+/* The star, on the card's top right corner, staying put as the card leans. Set, it's orange. */
+.star-corner {
+  position: absolute;
+  top: -11px;
+  right: -11px;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--float);
+  color: var(--dim);
+  box-shadow: var(--float-shadow);
+  z-index: 1;
+}
+.star-corner svg {
+  width: 15px;
+  height: 15px;
+}
+.star-corner:hover:not(:disabled) {
+  background: var(--float-hover);
+  color: var(--ink);
+}
+.star-corner[aria-pressed="true"],
+.star-corner[aria-pressed="true"]:hover:not(:disabled) {
+  background: var(--sun);
+  color: #fff;
+}
+.star-corner:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--halo), var(--float-shadow);
 }
 .tilt-sheen {
   position: absolute;

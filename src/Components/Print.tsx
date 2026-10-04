@@ -35,7 +35,7 @@ export default function Print({
 
   return (
     // The print is a div: the star is a button of its own, and a button can't hold another.
-    <div className="print fade-in" data-starred={starred ? "" : undefined}>
+    <div className="print fade-in" data-name={file.name} data-starred={starred ? "" : undefined}>
       <span className="frame-wrap">
         <button
           type="button"

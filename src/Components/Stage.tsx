@@ -5,7 +5,9 @@ import { useObjectUrl } from "../hooks/useObjectUrl";
 import { useSessionFile } from "../hooks/useSessionFile";
 import { useStream } from "../hooks/useStream";
 import { touch } from "../sessionCache";
+import { toggleStar, useIsStarred } from "../stars";
 import Compare from "./Compare";
+import Icon from "./Icon";
 import Tilt from "./Tilt";
 
 const kb = (bytes: number) => `${Math.round(bytes / 1024).toLocaleString()} KB`;
@@ -61,10 +63,27 @@ function KeptImage({ file, blob }: { file: FileEntry; blob?: Blob }) {
   const url = useObjectUrl(blob);
   const src = blob ? url : fileUrl(file);
   return src ? (
-    <Tilt>
+    <Tilt corner={<StarCorner file={file} />}>
       <img className="fade-in" src={src} alt={file.name} />
     </Tilt>
   ) : null;
+}
+
+// The star, on the top right corner of the card: set, it's orange (stars.ts).
+function StarCorner({ file }: { file: FileEntry }) {
+  const starred = useIsStarred(file.name);
+  return (
+    <button
+      type="button"
+      className="star-corner"
+      aria-pressed={starred}
+      aria-label={starred ? "Take the star off" : "Star this file"}
+      title={starred ? "Starred" : "Star"}
+      onClick={() => toggleStar(file.name)}
+    >
+      <Icon name="star" />
+    </button>
+  );
 }
 
 function StreamedImage({ file, version }: { file: FileEntry; version: string }) {
@@ -80,7 +99,7 @@ function StreamedImage({ file, version }: { file: FileEntry; version: string }) 
   }
   if (preview.status === "done") {
     return (
-      <Tilt>
+      <Tilt corner={<StarCorner file={file} />}>
         <img className="fade-in" src={preview.src} alt={file.name} />
       </Tilt>
     );

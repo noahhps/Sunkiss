@@ -5,6 +5,7 @@ import { useStoredState } from "../hooks/useStoredState";
 import { useStarred } from "../stars";
 import Details from "./Details";
 import FileActions from "./FileActions";
+import FileMenu from "./FileMenu";
 import FilterBar, { SHOWS, SHOW_LABELS, SIZES, SORTS, type Show, type Size, type Sort } from "./FilterBar";
 import Icon from "./Icon";
 import Layers from "./Layers";
@@ -46,6 +47,8 @@ const sliding = (target: EventTarget | null) => target instanceof HTMLElement &&
 // to the files either side of it; / focuses the search box from anywhere. Typing narrows
 // either view to names containing what's typed. Refresh, top left, asks the server for the
 // list again. Files dropped anywhere on the page go to the Upload screen, already chosen.
+// Right-clicking a print, in the grid or on the timeline, opens its actions as a cluster of
+// chips at the pointer (FileMenu.tsx).
 export default function Home({
   onNavigate,
   onDropFiles,
@@ -59,6 +62,7 @@ export default function Home({
   const [viewing, setViewing] = useState<Version | null>(null); // an earlier version, on the stage
   const [comparing, setComparing] = useState(false); // that earlier version, against the current one
   const [over, setOver] = useState(false); // files are being dragged over the page
+  const [menu, setMenu] = useState<{ file: FileEntry; x: number; y: number } | null>(null); // a print's menu, where it was right-clicked
   const search = useRef<HTMLInputElement>(null);
   // What the grid shows, in what order, and how big: remembered between visits.
   const [show, setShow] = useStoredState<Show>("sunkiss.show", "all", SHOWS);
@@ -138,6 +142,13 @@ export default function Home({
         event.preventDefault();
         const dropped = Array.from(event.dataTransfer.files);
         if (dropped.length) onDropFiles(dropped);
+      }}
+      onContextMenu={(event) => {
+        const print = event.target instanceof Element ? event.target.closest<HTMLElement>(".print[data-name]") : null;
+        const file = print && library.find((entry) => entry.name === print.dataset.name);
+        if (!file) return;
+        event.preventDefault();
+        setMenu({ file, x: event.clientX, y: event.clientY });
       }}
     >
       <SearchBox
@@ -250,6 +261,20 @@ export default function Home({
         <div className="drop-veil" aria-hidden="true">
           <span>Drop to upload</span>
         </div>
+      )}
+      {menu && (
+        <FileMenu
+          file={menu.file}
+          x={menu.x}
+          y={menu.y}
+          onClose={() => setMenu(null)}
+          onOpen={open}
+          onUpdated={(saved) => {
+            update(saved);
+            setViewing(null);
+            setComparing(false);
+          }}
+        />
       )}
     </main>
   );
