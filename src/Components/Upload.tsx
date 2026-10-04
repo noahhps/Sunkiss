@@ -1,18 +1,16 @@
 import { useEffect, useRef, useState, type DragEvent } from "react";
 import { Conflict, listFiles, uploadFile, type FileEntry } from "../api";
 import { formatSize } from "../format";
-import Carousel from "./Carousel";
+import CombinedCarousel from "./CombinedCarousel";
 import Icon from "./Icon";
 
 type Status = "ready" | "sending" | "done" | "exists" | "failed";
 
 // A file waiting to go, going, or gone. `name` is what it'll be called in Sunkiss, which
 // "Keep both" changes; `etag` is the version already there, when there's one by that name.
-type Item = { id: number; file: File; name: string; status: Status; sent: number; etag?: string; message?: string };
+type Item = { id: string; file: File; name: string; status: Status; sent: number; etag?: string; message?: string };
 
-let nextId = 0;
-
-// The type badge on a file's icon, coloured by kind, the way the tags on bencho.dev's upload
+// The tag with a file's type on it, coloured by kind, the way the tags on bencho.dev's upload
 // dropzone are.
 const BADGES: Record<string, string> = {
   png: "#2f9e5b",
@@ -30,26 +28,30 @@ const BADGES: Record<string, string> = {
 };
 
 // Upload: drop files in (or click to choose them), and "Kiss it in" sends them to Sunkiss.
-// Images that arrive join the carousel at the bottom. A file whose name is already in Sunkiss
-// can go in as a copy beside it ("Keep both"), or as its new version ("Replace": the one it
+// Images sent this session gather at the bottom, in the carousel, three at a time. A session
+// lasts from opening this screen until leaving it. A file whose name is already in Sunkiss can
+// go in as a copy beside it ("Keep both"), or as its new version ("Replace": the one it
 // replaces is kept on the server). This is the start of the version-control page.
 export default function Upload() {
   const [items, setItems] = useState<Item[]>([]);
   const [over, setOver] = useState(false); // a file is being dragged over the drop zone
   const [sending, setSending] = useState(false);
   const [library, setLibrary] = useState<FileEntry[]>([]); // what's in Sunkiss already
+  const [session, setSession] = useState<FileEntry[]>([]); // images sent this session, newest first
   const picker = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     listFiles().then(setLibrary, () => {});
   }, []);
 
-  const update = (id: number, change: Partial<Item>) =>
+  const update = (id: string, change: Partial<Item>) =>
     setItems((list) => list.map((item) => (item.id === id ? { ...item, ...change } : item)));
 
   function add(files: FileList | null) {
     if (!files?.length) return;
-    const added = [...files].map((file) => ({ id: nextId++, file, name: file.name, status: "ready" as Status, sent: 0 }));
+    // Random ids rather than a counter, which would start again whenever the dev server
+    // reloads this file with rows still on screen.
+    const added = [...files].map((file) => ({ id: crypto.randomUUID(), file, name: file.name, status: "ready" as Status, sent: 0 }));
     setItems((list) => [...list, ...added]);
   }
 
@@ -59,8 +61,10 @@ export default function Upload() {
     try {
       const saved = await uploadFile(item.file, item.name, replacing, (sent) => update(item.id, { sent }));
       update(item.id, { status: "done", sent: item.file.size });
-      // Newest first, like the carousel; a new version takes the old one's place.
-      setLibrary((list) => [saved, ...list.filter((file) => file.name !== saved.name)]);
+      // Newest first; a new version takes the old one's place.
+      const without = (list: FileEntry[]) => list.filter((file) => file.name !== saved.name);
+      setLibrary((list) => [saved, ...without(list)]);
+      if (saved.type.startsWith("image/")) setSession((list) => [saved, ...without(list)]);
     } catch (err) {
       if (err instanceof Conflict && err.reason === "exists") update(item.id, { status: "exists", etag: err.etag });
       else update(item.id, { status: "failed", message: err instanceof Error ? err.message : String(err) });
@@ -86,9 +90,6 @@ export default function Upload() {
 
   const ready = items.filter((item) => item.status === "ready");
   const readyBytes = ready.reduce((total, item) => total + item.file.size, 0);
-  const images = library
-    .filter((file) => file.type.startsWith("image/"))
-    .sort((a, b) => Date.parse(b.modified) - Date.parse(a.modified));
 
   return (
     <main className="container upload-screen">
@@ -169,7 +170,7 @@ export default function Upload() {
         </div>
       )}
 
-      <Carousel images={images} />
+      <CombinedCarousel images={session} />
     </main>
   );
 }
@@ -199,13 +200,13 @@ function Row({
 
   return (
     <li className="upload" data-status={item.status}>
-      <FileGlyph name={item.name} />
+      <TypeTag name={item.name} />
       <div className="upload-text">
         <span className="upload-name" title={item.name}>
           {item.name}
         </span>
-        <span className="upload-meta">
-          {item.status === "done" && <Icon name="check" />}
+        <span className="upload-meta" title={status}>
+          {item.status === "done" && <Icon name="check-circle" />}
           {status}
         </span>
         {item.status === "sending" && (
@@ -240,20 +241,12 @@ function Row({
   );
 }
 
-// A file icon with its type on a coloured tag.
-function FileGlyph({ name }: { name: string }) {
+// A file's type on a coloured tag ("FILE" when its name doesn't say).
+function TypeTag({ name }: { name: string }) {
   const extension = name.includes(".") ? name.split(".").pop()!.toLowerCase() : "";
   return (
-    <span className="glyph" aria-hidden="true">
-      <svg viewBox="0 0 28 34">
-        <path d="M4 1h14l8 8v21a3 3 0 0 1-3 3H4a3 3 0 0 1-3-3V4a3 3 0 0 1 3-3z" />
-        <path className="fold" d="M18 1v6a2 2 0 0 0 2 2h6" />
-      </svg>
-      {extension && (
-        <span className="glyph-badge" style={{ background: BADGES[extension] ?? "#6b7280" }}>
-          {extension.slice(0, 4).toUpperCase()}
-        </span>
-      )}
+    <span className="type-tag" aria-hidden="true" style={{ background: BADGES[extension] ?? "#6b7280" }}>
+      {(extension || "file").slice(0, 4).toUpperCase()}
     </span>
   );
 }

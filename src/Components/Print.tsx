@@ -12,7 +12,8 @@ const clock = (seconds: number) => {
 
 // One thumbnail in QuickView's "print" style: the image shrunk to fit its box, with its
 // name under it. `selected` marks the one being previewed, where there is one. A badge in
-// the corner shows the file is on this device for the session, or on its way. In the
+// the corner shows the file is on this device for the session, or on its way; the other top
+// corner says how many versions it has, when there's more than one. In the
 // desktop app it can be dragged out into another app (Photoshop, Premiere, Finder), which
 // gets the file in the Sunkiss drive.
 export default function Print({
@@ -61,6 +62,12 @@ export default function Print({
           <img src={fileUrl(file, 400, 400)} alt={file.name} loading="lazy" />
         )}
         {duration !== undefined && Number.isFinite(duration) && <span className="duration">{clock(duration)}</span>}
+        {file.versions > 1 && (
+          <span className="versions-badge" title={`${file.versions} versions`}>
+            <Icon name="versions" />
+            {file.versions}
+          </span>
+        )}
         {session?.status === "kept" && (
           <span className="badge" title="Available this session">
             <Icon name="check" />
@@ -68,7 +75,7 @@ export default function Print({
         )}
         {session?.status === "downloading" && (
           <span className="badge" data-status="downloading" title="Downloading">
-            <Icon name="download" />
+            <Icon name="arrow-down" />
           </span>
         )}
       </span>

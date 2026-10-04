@@ -21,9 +21,21 @@ export const failureMessage = (res: Response) =>
   res.status === 502 ? "Couldn't reach the server" : `The server answered ${res.status}`;
 
 /** A file in the server's folder. `size` is in bytes; `modified` is when it was last saved, as an
- * ISO date; `etag` changes with every save. */
-export type FileEntry = { name: string; type: string; size: number; modified: string; etag: string; version: string };
-export type Version = {name: string, id: string};
+ * ISO date; `etag` changes with every save. `version` is the id of the current version, and
+ * `versions` counts it and the earlier ones (listVersions lists them). */
+export type FileEntry = {
+  name: string;
+  type: string;
+  size: number;
+  modified: string;
+  etag: string;
+  version: string;
+  versions: number;
+};
+
+/** One saved version of a file: its id (what ?V= takes), size, when it was saved, its ETag, and
+ * whether it's the current one. */
+export type Version = { id: string; size: number; modified: string; etag: string; current: boolean };
 
 // Types the server can resize (keep in sync with RESIZABLE in server/src/routes/files.ts).
 const RESIZABLE = ["image/png", "image/jpeg", "image/webp"];
@@ -34,15 +46,24 @@ export const isResizable = (file: FileEntry) => RESIZABLE.includes(file.type);
 /** Whether a file is a video, which plays as it streams instead of downloading first. */
 export const isVideo = (file: FileEntry) => file.type.startsWith("video/");
 
-/** URL for a file. With a width and/or height, asks the server for a copy that fits within them. */
-export function fileUrl(file: FileEntry, width?: number, height?: number, version?: string): string {
-  const base = `${FILES}/${encodeURIComponent(file.name)}`;
-  if (!isResizable(file) || (!width && !height)) return base;
+/** URL for a file. With a width and/or height, asks the server for a copy that fits within them.
+ * With a version (an id from listVersions), it's that version of the file. */
+export function fileUrl(file: FileEntry, width?: number, height?: number, version = file.version): string {
+  const resized = isResizable(file) && Boolean(width || height);
+  const earlier = version !== file.version;
+  // An earlier version's whole file comes straight from the server, the way uploads go. In the
+  // desktop app Rust answers for current files from its memory and passes anything else on
+  // whole, so a video player asking for "bytes=0-" would have the whole file held in memory.
+  const base = earlier && !resized ? `${SERVER}/files` : FILES;
   const params = new URLSearchParams();
-  if (width) params.set("w", String(width));
-  if (height) params.set("h", String(height));
-  if (version) params.set("V", String(version)); // V is intententionally capitalized for Versions
-  return `${base}?${params}`;
+  if (resized && width) params.set("w", String(width));
+  if (resized && height) params.set("h", String(height));
+  // V is intentionally capitalized for Versions. A preview always says which version it's of,
+  // so a new version gets a new address and the browser can't show the old one from its cache.
+  // The current file itself goes without: that's the address Rust answers from memory.
+  if (version && (resized || earlier)) params.set("V", version);
+  const query = params.toString();
+  return `${base}/${encodeURIComponent(file.name)}${query ? `?${query}` : ""}`;
 }
 
 
@@ -101,9 +122,25 @@ export function uploadFile(
   });
 }
 
-/** Every saved version of one file. (GET /files/:name/versions isn't on the server yet.) */
+/** Every saved version of one file, newest first (GET /files/:name/versions). */
 export async function listVersions(name: string): Promise<Version[]> {
   const res = await fetch(`${FILES}/${encodeURIComponent(name)}/versions`);
   if (!res.ok) throw new Error(failureMessage(res));
+  return res.json();
+}
+
+/** Makes an earlier version the current one again (POST /files/:name/restore?V=…). It's saved
+ * as a new version, so the one it replaces is kept too. Fails with a Conflict when the file
+ * changed since `file` was listed. Straight to the server, as uploads go. */
+export async function restoreVersion(file: FileEntry, version: Version): Promise<FileEntry> {
+  const url = `${SERVER}/files/${encodeURIComponent(file.name)}/restore?V=${encodeURIComponent(version.id)}`;
+  const res = await fetch(url, { method: "POST", headers: { "If-Match": file.etag } }).catch(() => {
+    throw new Error("Couldn't reach the server");
+  });
+  if (res.status === 412) {
+    const { error, etag } = await res.json();
+    throw new Conflict(error, etag);
+  }
+  if (res.status !== 201) throw new Error(`The server answered ${res.status}`);
   return res.json();
 }

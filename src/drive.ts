@@ -87,10 +87,12 @@ function card(file: FileEntry): string {
     g.beginPath();
     g.roundRect(0, 0, canvas.width, canvas.height, 10);
     g.fill();
-    g.font = "600 12px Inter, Avenir, Helvetica, Arial, sans-serif";
+    // The page's own font (App.css), so the card reads like the rest of Sunkiss.
+    const font = getComputedStyle(document.documentElement).fontFamily;
+    g.font = `600 12px ${font}`;
     g.fillStyle = "#f4f6fa";
     g.fillText(fit(g, file.name, canvas.width - 24), 12, 23);
-    g.font = "11px Inter, Avenir, Helvetica, Arial, sans-serif";
+    g.font = `11px ${font}`;
     g.fillStyle = "rgba(244, 246, 250, 0.62)";
     g.fillText(file.type.split("/")[1]?.toUpperCase() ?? "FILE", 12, 39);
   }

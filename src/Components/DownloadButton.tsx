@@ -25,8 +25,8 @@ export default function DownloadButton({ file }: { file: FileEntry }) {
   if (entry?.status === "kept") {
     return (
       <button type="button" className="pill download" data-status="kept" title="Remove from this session" onClick={() => forget(file)}>
-        <Icon name="check" className="at-rest" />
-        <Icon name="cross" className="on-hover" />
+        <Icon name="check-circle" className="at-rest" />
+        <Icon name="cross-circle" className="on-hover" />
         Available this session
       </button>
     );
