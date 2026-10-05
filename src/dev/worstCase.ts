@@ -73,9 +73,9 @@ const worst = (): Spec[] => {
   { name: "Đặng Thị Ngọc Hân — chân dung.jpg", size: 2_900_000, modified: ago(2 * DAY + 2000), picture: "real" },
   // Emoji, and characters that look like markup.
   { name: "👩🏽‍💻 Priya's moodboard <draft> & notes.png", size: 5_500_000, modified: ago(9 * DAY), picture: "real" },
-  // A 2.4 GB screen recording, and a big Photoshop file (which the folder holds but Home filters out).
+  // A 2.4 GB screen recording, and a big Photoshop file whose picture of itself won't load.
   { name: "Screen Recording 2026-10-01 at 10.14.52 PM — design review with Northwind Industries.mov", size: 2_412_000_000, modified: ago(40 * DAY), versions: 1_284, picture: "real-video", type: "video/quicktime" },
-  { name: "Homepage hero — layered.psd", size: 1_840_000_000, modified: ago(41 * DAY), versions: 31, picture: null, type: "application/octet-stream" },
+  { name: "Homepage hero — layered.psd", size: 1_840_000_000, modified: ago(41 * DAY), versions: 31, picture: null, type: "image/vnd.adobe.photoshop" },
   // A picture that fails to load.
   { name: "Deleted on the server but still listed.png", size: 3_000_000, modified: ago(400 * DAY), picture: null, type: "image/png" },
   // Clock skew: saved "in the future", and a zero timestamp.

@@ -8,31 +8,59 @@ import { randomUUID } from 'node:crypto';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import sharp from 'sharp';
+import { DESIGN_EXTENSIONS, infoOf, previewOf } from '../design.js';
 
 
 const files = new Hono();
 
 
 // The folder to serve from: server/files, no matter where the server is started.
-const FILES_DIR = path.join(import.meta.dirname, '..', '..', 'files');
+export const FILES_DIR = path.join(import.meta.dirname, '..', '..', 'files');
 
 // Earlier versions of each file: .versions/<name>/, one file per version. Each is named for
 // when that version was saved ("2026-10-01T19-55-28-605Z Logo.svg") and keeps that time as
 // its own modified time. Hidden from the list, like every name starting with a dot.
 const VERSIONS_DIR = path.join(FILES_DIR, '.versions');
 
+// Where a file came from, when it wasn't uploaded: .links/<name>.json, written by the Figma
+// snapshot route (routes/figma.ts) and read into the file's entry, so the app can show it.
+const LINKS_DIR = path.join(FILES_DIR, '.links');
+
+/** A file's source outside Sunkiss: so far, a frame in a Figma file. */
+export type Link = {
+  source: 'figma';
+  url: string;
+  key: string;
+  nodeId: string;
+  nodeName: string;
+  fileName: string;
+  version: string;
+  lastModified: string | null;
+  snapshotAt: string;
+};
+
 // Only plain file names: blocks "../" tricks that would reach outside the folder, and hidden
 // names like .versions. And no longer than the disk allows (255 bytes on APFS), so a name
 // that's too long is turned away with a clear answer rather than failing partway through a save.
 const MAX_NAME_BYTES = 255;
-const isSafeName = (name: string) =>
+export const isSafeName = (name: string) =>
   name === path.basename(name) && !name.startsWith('.') && Buffer.byteLength(name) <= MAX_NAME_BYTES;
 
-const typeOf = (name: string) =>
+export const typeOf = (name: string) =>
   CONTENT_TYPES[path.extname(name).toLowerCase()] ?? 'application/octet-stream';
     
 const CONTENT_TYPES: Record<string, string> = {
   '.pdf': 'application/pdf',
+  // Layered design files (see design.ts): previews and layers come out of them on the server.
+  '.psd': 'image/vnd.adobe.photoshop',
+  '.psb': 'image/vnd.adobe.photoshop',
+  '.ai': 'application/illustrator',
+  '.indd': 'application/x-indesign',
+  '.sketch': 'application/x-sketch',
+  '.fig': 'application/x-figma',
+  '.xd': 'application/vnd.adobe.xd',
+  '.tif': 'image/tiff',
+  '.tiff': 'image/tiff',
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
@@ -60,7 +88,7 @@ type Saved = { id: string; path: string; info: Stats; current: boolean };
 
 // Every version of a file, newest first: the current one (when there is one), then the
 // earlier ones from .versions/<name>/.
-async function versionsOf(name: string): Promise<Saved[]> {
+export async function versionsOf(name: string): Promise<Saved[]> {
   const filePath = path.join(FILES_DIR, name);
   const current = await stat(filePath).catch(() => null);
   const folder = path.join(VERSIONS_DIR, name);
@@ -95,7 +123,23 @@ const entryOf = async (name: string, info: Stats) => ({
   etag: etagOf(info),
   version: idOf(info),
   versions: await countVersions(name),
+  link: await linkOf(name),
 });
+
+// The file's link, if it has one (undefined is left out of the JSON).
+async function linkOf(name: string): Promise<Link | undefined> {
+  try {
+    return JSON.parse(await fs.readFile(path.join(LINKS_DIR, `${name}.json`), 'utf8'));
+  } catch {
+    return undefined;
+  }
+}
+
+/** Remembers where a file came from (see Link); the Figma route writes one with each snapshot. */
+export async function writeLink(name: string, link: Link) {
+  await mkdir(LINKS_DIR, { recursive: true });
+  await fs.writeFile(path.join(LINKS_DIR, `${name}.json`), JSON.stringify(link, null, 2));
+}
 
 // GET /files → the name, type, size in bytes, last-changed time, ETag, current version and
 // number of versions of every file in FILES_DIR
@@ -115,7 +159,7 @@ files.get('/', async (c) => {
 
 // Image types sharp can resize without changing the format (SVG would become PNG,
 // GIF would lose its animation), so only these get a ?w= preview.
-const RESIZABLE = new Set(['.png', '.jpg', '.jpeg', '.webp']);
+const RESIZABLE = new Set(['.png', '.jpg', '.jpeg', '.webp', '.tif', '.tiff']);
 
 // Reads a Range header: "bytes=0-1023" (the first 1024 bytes), "bytes=1024-" (from byte 1024
 // to the end) or "bytes=-500" (the last 500). Returns the span to send; null to send the whole
@@ -192,6 +236,17 @@ async function send(c: Context, name: string, filePath: string, info: Stats) {
       sharp().resize({ width, height, fit: 'inside', withoutEnlargement: true }),
     );
     return c.body(Readable.toWeb(resized) as ReadableStream, 200, headers);
+  }
+
+  if ((width || height) && DESIGN_EXTENSIONS.has(path.extname(name).toLowerCase())) {
+    // The picture the file carries of itself (design.ts), resized like any other preview, as PNG.
+    const headers = { 'Content-Type': 'image/png', 'Cache-Control': 'no-cache', ETag: `W/${etag}` };
+    if (isCurrent(c.req.header('If-None-Match'), etag)) return c.body(null, 304, headers);
+    if (headersOnly) return c.body(null, 200, headers);
+    const picture = await previewOf(filePath, name, etag);
+    if (!picture) return c.text('This file carries no picture of itself', 415);
+    const png = await sharp(picture).resize({ width, height, fit: 'inside', withoutEnlargement: true }).png().toBuffer();
+    return c.body(png, 200, headers);
   }
 
   // The file itself. no-store keeps it out of the browser's disk cache: the app holds files
@@ -289,6 +344,20 @@ async function overtaken(c: Context, name: string, checked: Stats | null) {
   return c.json({ error: checked ? 'changed' : 'exists', etag: etagOf(current) }, 412);
 }
 
+/** Saves bytes the server has in hand (a picture Figma rendered) as the file's next version,
+ * or as a new file: whatever is there now is what it follows. Tries once more if another save
+ * gets in between looking and saving. */
+export async function saveBytes(name: string, bytes: Buffer) {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const current = await stat(path.join(FILES_DIR, name)).catch(() => null);
+    const incoming = path.join(FILES_DIR, `.upload-${randomUUID()}`);
+    await fs.writeFile(incoming, bytes);
+    const saved = await commit(name, incoming, current);
+    if (saved) return entryOf(name, saved);
+  }
+  throw new Error(`Couldn't save ${name}: it kept changing`);
+}
+
 // POST /files/:name/versions → saves the request's body as the file's new version, or as a
 // new file (see refusal for the header that says which). The version a save replaces isn't
 // lost: it's moved to .versions/<name>/ (hidden from the list).
@@ -342,6 +411,29 @@ files.post('/:name/restore', async (c) => {
   const saved = await commit(name, incoming, current);
   if (!saved) return overtaken(c, name, current);
   return c.json(await entryOf(name, saved), 201);
+});
+
+// GET /files/:name/info → what's inside an image: its width and height in pixels, its format,
+// and whether it has transparency, as sharp reads them. ?V=<id> asks about one of its
+// versions instead of the current one. Anything that isn't an image gets null.
+files.get('/:name/info', async (c) => {
+  const name = c.req.param('name');
+  if (!isSafeName(name)) {
+    return c.text('Invalid file name', 400);
+  }
+  const id = c.req.query('V');
+  const versions = await versionsOf(name);
+  const version = id ? versions.find((saved) => saved.id === id) : versions.find((saved) => saved.current);
+  if (!version) return c.text(id ? 'No such version' : 'File not found', 404);
+  if (DESIGN_EXTENSIONS.has(path.extname(name).toLowerCase())) return c.json(await infoOf(version.path, name));
+  if (!typeOf(name).startsWith('image/')) return c.json(null);
+  try {
+    const { width, height, format, hasAlpha } = await sharp(version.path).metadata();
+    if (!width || !height) return c.json(null);
+    return c.json({ width, height, units: 'px', format: format ?? null, hasAlpha: hasAlpha ?? false });
+  } catch {
+    return c.json(null); // not an image sharp can read
+  }
 });
 
 //deleting a file by name

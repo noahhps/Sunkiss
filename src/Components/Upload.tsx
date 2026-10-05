@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type DragEvent } from "react";
 import { Conflict, listFiles, uploadFile, type FileEntry } from "../api";
 import { formatSize } from "../format";
 import CombinedCarousel from "./CombinedCarousel";
+import FigmaImport from "./FigmaImport";
 import Icon from "./Icon";
 
 type Status = "ready" | "sending" | "done" | "exists" | "failed";
@@ -20,19 +21,28 @@ const BADGES: Record<string, string> = {
   webp: "#12a594",
   svg: "#8e4ec6",
   psd: "#1473e6",
+  psb: "#1473e6",
+  ai: "#ff7c00",
+  indd: "#ff3366",
+  sketch: "#f7b500",
+  fig: "#a259ff",
+  xd: "#ff61f6",
+  tif: "#6b7280",
+  tiff: "#6b7280",
   pdf: "#e5484d",
-  mov: "#4d7dfa",
-  mp4: "#4d7dfa",
-  m4v: "#4d7dfa",
-  webm: "#4d7dfa",
+  mov: "#008cff",
+  mp4: "#008cff",
+  m4v: "#008cff",
+  webm: "#008cff",
 };
 
 // Upload: drop files in (or click to choose them), and "Kiss it in" sends them to Sunkiss.
 // Images sent this session gather at the bottom, in the carousel, three at a time. A session
 // lasts from opening this screen until leaving it. A file whose name is already in Sunkiss can
 // go in as a copy beside it ("Keep both"), or as its new version ("Replace": the one it
-// replaces is kept on the server). This is the start of the version-control page.
-export default function Upload() {
+// replaces is kept on the server). This is the start of the version-control page. Files
+// dropped on another screen (Home) arrive as `initialFiles`, already chosen.
+export default function Upload({ initialFiles, onConsumed }: { initialFiles?: File[] | null; onConsumed?: () => void }) {
   const [items, setItems] = useState<Item[]>([]);
   const [over, setOver] = useState(false); // a file is being dragged over the drop zone
   const [sending, setSending] = useState(false);
@@ -44,14 +54,23 @@ export default function Upload() {
     listFiles().then(setLibrary, () => {});
   }, []);
 
+  // Taken once: in development StrictMode runs this twice, and the files shouldn't list twice.
+  const taken = useRef(false);
+  useEffect(() => {
+    if (taken.current || !initialFiles?.length) return;
+    taken.current = true;
+    add(initialFiles);
+    onConsumed?.();
+  }, [initialFiles]);
+
   const update = (id: string, change: Partial<Item>) =>
     setItems((list) => list.map((item) => (item.id === id ? { ...item, ...change } : item)));
 
-  function add(files: FileList | null) {
+  function add(files: ArrayLike<File> | null | undefined) {
     if (!files?.length) return;
     // Random ids rather than a counter, which would start again whenever the dev server
     // reloads this file with rows still on screen.
-    const added = [...files].map((file) => ({ id: crypto.randomUUID(), file, name: file.name, status: "ready" as Status, sent: 0 }));
+    const added = Array.from(files).map((file) => ({ id: crypto.randomUUID(), file, name: file.name, status: "ready" as Status, sent: 0 }));
     setItems((list) => [...list, ...added]);
   }
 
@@ -169,6 +188,15 @@ export default function Upload() {
           </button>
         </div>
       )}
+
+      {/* Frames snapshotted from Figma are images sent this session like any other. */}
+      <FigmaImport
+        onSaved={(saved) => {
+          const without = (list: FileEntry[]) => list.filter((file) => !saved.some((entry) => entry.name === file.name));
+          setLibrary((list) => [...saved, ...without(list)]);
+          setSession((list) => [...saved, ...without(list)]);
+        }}
+      />
 
       <CombinedCarousel images={session} />
     </main>

@@ -1,51 +1,33 @@
 import { useEffect, useRef, useState } from "react";
 import type { FileEntry } from "../api";
-import { formatCount, whenOf } from "../format";
+import { formatCount, fullDate, relativeDay, whenOf } from "../format";
 import Print from "./Print";
 
 // How many prints the timeline strings out at first, and how many more each "Show more" adds.
 const PAGE = 200;
 
-// A day of files; `date` is null for the files whose date isn't known.
-type Day = { key: string; date: Date | null; files: FileEntry[] };
+// A run of files from one day; `date` is null for files whose date isn't known.
+type Day = { key: string; day: string; date: Date | null; files: FileEntry[] };
 
-// Splits files (already newest first) into runs that share a calendar day, in the
-// viewer's own time zone. A date in the future counts as today; an unknown one goes in a
-// group of its own (see whenOf).
+// Splits files into runs that share a calendar day, in the viewer's own time zone. Sorted by
+// name or size, the same day can come round more than once, so each run is keyed by its first
+// file too. A date in the future counts as today; an unknown one is a day of its own (whenOf).
 function groupByDay(files: FileEntry[]): Day[] {
   const days: Day[] = [];
   for (const file of files) {
     const time = whenOf(file.modified);
     const date = time === null ? null : new Date(time);
-    const key = date?.toDateString() ?? "unknown";
+    const day = date?.toDateString() ?? "unknown";
     const current = days[days.length - 1];
-    if (current?.key === key) current.files.push(file);
-    else days.push({ key, date, files: [file] });
+    if (current?.day === day) current.files.push(file);
+    else days.push({ key: `${day} ${file.name}`, day, date, files: [file] });
   }
   return days;
 }
 
-// "Today" and "Yesterday" read faster than a date; older days get null.
-function relativeDay(date: Date): string | null {
-  const day = new Date();
-  if (date.toDateString() === day.toDateString()) return "Today";
-  day.setDate(day.getDate() - 1);
-  if (date.toDateString() === day.toDateString()) return "Yesterday";
-  return null;
-}
-
-// "Sat, Sep 12", with the year only when it isn't this one.
-const fullDate = (date: Date) =>
-  date.toLocaleDateString(undefined, {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    year: date.getFullYear() === new Date().getFullYear() ? undefined : "numeric",
-  });
-
 // The files as a timeline that scrolls sideways: a line across the top with a dot where
 // each day starts, and that day's files in a row beneath it. `files` must already be
-// sorted newest first; the newest sit at the left. A long history shows its newest few
+// sorted newest first; the newest sit at the left. A long history shows its first few
 // hundred (always including the open file), with the rest a click away.
 export default function Timeline({
   files,
@@ -69,7 +51,7 @@ export default function Timeline({
   // along the top.
   useEffect(() => {
     const strip = list.current;
-    const print = strip?.querySelector<HTMLElement>('[aria-pressed="true"]');
+    const print = strip?.querySelector<HTMLElement>('.print-open[aria-pressed="true"]');
     if (!strip || !print) return;
     const offset = print.getBoundingClientRect().left - strip.getBoundingClientRect().left;
     strip.scrollTo({

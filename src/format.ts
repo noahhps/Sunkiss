@@ -68,3 +68,22 @@ export function splitForMiddle(name: string, most = 28): [head: string, tail: st
   if (parts.length <= keep) return ["", name];
   return [parts.slice(0, -keep).join(""), parts.slice(-keep).join("")];
 }
+
+/** "Today" or "Yesterday" for those two days, which read faster than a date; null for any
+ * other day, which fullDate spells out. */
+export function relativeDay(date: Date): string | null {
+  const day = new Date();
+  if (date.toDateString() === day.toDateString()) return "Today";
+  day.setDate(day.getDate() - 1);
+  if (date.toDateString() === day.toDateString()) return "Yesterday";
+  return null;
+}
+
+/** "Sat, Sep 12", with the year only when it isn't this one. */
+export const fullDate = (date: Date) =>
+  date.toLocaleDateString(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: date.getFullYear() === new Date().getFullYear() ? undefined : "numeric",
+  });

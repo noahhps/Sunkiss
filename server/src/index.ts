@@ -4,6 +4,8 @@ import { cors } from 'hono/cors';
 
 // routes
 import files from './routes/files.js';
+import figma from './routes/figma.js';
+import activity from './routes/activity.js';
 
 
 const app = new Hono();
@@ -19,6 +21,12 @@ app.get('/health', (c) => c.json({ ok: true }));
 
 // File Retrieval: Gets all files 
 app.route('/files', files);
+
+// Figma: snapshots of frames in a Figma file, saved as files here (routes/figma.ts).
+app.route('/figma', figma);
+
+// Activity: every saved version of every file, for the Kisses screen (routes/activity.ts).
+app.route('/activity', activity);
 
 const port = Number(process.env.PORT ?? 8787);
 serve({ fetch: app.fetch, port }, (info) => {

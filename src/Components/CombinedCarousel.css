@@ -9,6 +9,11 @@
   margin-top: 32px;
   --shadow-rgb: 0, 0, 0;
 }
+@media (prefers-color-scheme: light) {
+  .combined-carousel {
+    --shadow-rgb: 20, 32, 52; /* a blue-grey: a shadow on the pale page, not on glass */
+  }
+}
 
 /* Room above and below for cards that rise and bob, but nothing
    sideways: the side cards are kept inside, and anything wider

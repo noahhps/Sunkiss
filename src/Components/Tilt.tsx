@@ -7,8 +7,9 @@ const SHADE = 0.6;
 
 // Tilts what it holds toward the pointer, like a print held in the hand: it leans in, sinks a
 // little, catches the light where the pointer is and falls into shade in the opposite corner.
-// When the pointer leaves it springs back flat.
-export default function Tilt({ children }: { children: ReactNode }) {
+// When the pointer leaves it springs back flat. `corner` is pinned to the card's top right
+// (the star, on the stage) but stays put while the card leans under it.
+export default function Tilt({ children, corner }: { children: ReactNode; corner?: ReactNode }) {
   const card = useRef<HTMLDivElement>(null);
 
   function follow(event: PointerEvent<HTMLDivElement>) {
@@ -41,6 +42,7 @@ export default function Tilt({ children }: { children: ReactNode }) {
         {children}
         <span className="tilt-sheen" aria-hidden="true" />
       </div>
+      {corner}
     </div>
   );
 }
