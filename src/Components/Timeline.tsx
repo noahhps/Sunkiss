@@ -1,40 +1,24 @@
 import { useEffect, useRef } from "react";
 import type { FileEntry } from "../api";
+import { fullDate, relativeDay } from "../format";
 import Print from "./Print";
 
-type Day = { key: string; date: Date; files: FileEntry[] };
+type Day = { key: string; day: string; date: Date; files: FileEntry[] };
 
-// Splits files (already newest first) into runs that share a calendar day, in the
-// viewer's own time zone.
+// Splits files into runs that share a calendar day, in the viewer's own time zone. Sorted by
+// name or size, the same day can come round more than once, so each run is keyed by its first
+// file too.
 function groupByDay(files: FileEntry[]): Day[] {
   const days: Day[] = [];
   for (const file of files) {
     const date = new Date(file.modified);
-    const key = date.toDateString();
+    const day = date.toDateString();
     const current = days[days.length - 1];
-    if (current?.key === key) current.files.push(file);
-    else days.push({ key, date, files: [file] });
+    if (current?.day === day) current.files.push(file);
+    else days.push({ key: `${day} ${file.name}`, day, date, files: [file] });
   }
   return days;
 }
-
-// "Today" and "Yesterday" read faster than a date; older days get null.
-function relativeDay(date: Date): string | null {
-  const day = new Date();
-  if (date.toDateString() === day.toDateString()) return "Today";
-  day.setDate(day.getDate() - 1);
-  if (date.toDateString() === day.toDateString()) return "Yesterday";
-  return null;
-}
-
-// "Sat, Sep 12", with the year only when it isn't this one.
-const fullDate = (date: Date) =>
-  date.toLocaleDateString(undefined, {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    year: date.getFullYear() === new Date().getFullYear() ? undefined : "numeric",
-  });
 
 // The files as a timeline that scrolls sideways: a line across the top with a dot where
 // each day starts, and that day's files in a row beneath it. `files` must already be
@@ -54,7 +38,7 @@ export default function Timeline({
   // Bring the chosen file to the middle of the strip: straight there when the timeline
   // opens, gliding when you pick another from it.
   useEffect(() => {
-    list.current?.querySelector('[aria-pressed="true"]')?.scrollIntoView({
+    list.current?.querySelector('.print-open[aria-pressed="true"]')?.scrollIntoView({
       block: "nearest",
       inline: "center",
       behavior: opening.current ? "instant" : "smooth",

@@ -1,17 +1,16 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import NavBar, { type Screen } from "./Components/NavBar";
 import Home from "./Components/Home";
+import Kisses from "./Components/Kisses";
 import Settings from "./Components/Settings";
-import Stream from "./Components/Stream";
 import Upload from "./Components/Upload";
 import "./App.css";
-
-const SCREENS = { home: Home, upload: Upload, stream: Stream, settings: Settings };
 
 // The app's frame: the nav bar on top, and whichever screen is selected below it.
 function App() {
   const [screen, setScreen] = useState<Screen>("home");
-  const Current = SCREENS[screen];
+  const [dropped, setDropped] = useState<File[] | null>(null); // files dropped on Home, on their way to Upload
+  const [wanted, setWanted] = useState<string | null>(null); // a file picked on Kisses, to open on Home
 
   // A file dropped anywhere but a drop zone would open in the window, in place of the app.
   useEffect(() => {
@@ -26,15 +25,37 @@ function App() {
     };
   }, []);
 
+  const screens: Record<Screen, ReactNode> = {
+    home: (
+      <Home
+        onNavigate={setScreen}
+        onDropFiles={(files) => {
+          setDropped(files);
+          setScreen("upload");
+        }}
+        open={wanted}
+        onOpened={() => setWanted(null)}
+      />
+    ),
+    upload: <Upload initialFiles={dropped} onConsumed={() => setDropped(null)} />,
+    kisses: (
+      <Kisses
+        onNavigate={setScreen}
+        onOpen={(name) => {
+          setWanted(name);
+          setScreen("home");
+        }}
+      />
+    ),
+    settings: <Settings />,
+  };
+
   return (
-    <div style={{ display: "flex" }}>
+    <div className="app">
       {/* The window has no visible title bar, so this invisible strip is what you drag it by. */}
       <div className="titlebar" data-tauri-drag-region />
       <NavBar current={screen} onNavigate={setScreen} />
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <Current />
-      </div>
-
+      <div style={{ flex: 1, minWidth: 0 }}>{screens[screen]}</div>
     </div>
   );
 }
