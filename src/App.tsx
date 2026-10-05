@@ -1,14 +1,10 @@
-import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import NavBar, { type Screen } from "./Components/NavBar";
 import Home from "./Components/Home";
 import Kisses from "./Components/Kisses";
 import Settings from "./Components/Settings";
 import Upload from "./Components/Upload";
 import "./App.css";
-
-// Dev only: the switch between real and worst-case data (src/dev). Loaded lazily, so a
-// production build leaves it out entirely.
-const DataToggle = import.meta.env.DEV ? lazy(() => import("./dev/DataToggle")) : null;
 
 // The app's frame: the nav bar on top, and whichever screen is selected below it.
 function App() {
@@ -59,11 +55,6 @@ function App() {
       {/* The window has no visible title bar, so this invisible strip is what you drag it by. */}
       <div className="titlebar" data-tauri-drag-region />
       <NavBar current={screen} onNavigate={setScreen} />
-      {DataToggle && (
-        <Suspense>
-          <DataToggle />
-        </Suspense>
-      )}
       {/* Keyed by screen, so each screen fades in as you arrive at it. */}
       <div key={screen} className="screen" style={{ flex: 1, minWidth: 0 }}>
         {screens[screen]}

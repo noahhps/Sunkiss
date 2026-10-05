@@ -1,5 +1,4 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
-import { dataMode, fixtureFiles, fixtureVersions, isFixture, pictureFor } from "./dev/worstCase";
 
 // Where the server is, and how to build URLs for its files.
 export const SERVER = "http://localhost:8787";
@@ -88,17 +87,6 @@ export const isVideo = (file: FileEntry) => file.type.startsWith("video/");
 /** URL for a file. With a width and/or height, asks the server for a copy that fits within them.
  * With a version (an id from listVersions), it's that version of the file. */
 export function fileUrl(file: FileEntry, width?: number, height?: number, version = file.version): string {
-  // Dev only: a fixture file shows the picture it borrows (see src/dev/worstCase.ts).
-  if (import.meta.env.DEV && isFixture(file.name)) {
-    const picture = pictureFor(file.name);
-    if (typeof picture === "string") return picture;
-    if (!picture) return `${FILES}/${encodeURIComponent(file.name)}`; // not on the server: won't load
-    return serverUrl(picture, width, height, picture.version);
-  }
-  return serverUrl(file, width, height, version);
-}
-
-function serverUrl(file: FileEntry, width: number | undefined, height: number | undefined, version: string): string {
   const resized = isResizable(file) && Boolean(width || height);
   const earlier = version !== file.version;
   // An earlier version's whole file comes straight from the server, the way uploads go. In the
@@ -121,8 +109,7 @@ function serverUrl(file: FileEntry, width: number | undefined, height: number | 
 export async function listFiles(): Promise<FileEntry[]> {
   const res = await fetch(FILES);
   if (!res.ok) throw new Error(failureMessage(res));
-  const list: FileEntry[] = await res.json();
-  return import.meta.env.DEV && dataMode() !== "demo" ? fixtureFiles(list) : list;
+  return res.json();
 }
 
 
@@ -192,7 +179,6 @@ export async function listActivity(): Promise<Kiss[]> {
 
 /** Every saved version of one file, newest first (GET /files/:name/versions). */
 export async function listVersions(name: string): Promise<Version[]> {
-  if (import.meta.env.DEV && isFixture(name)) return fixtureVersions(name);
   const res = await fetch(`${FILES}/${encodeURIComponent(name)}/versions`);
   if (!res.ok) throw new Error(failureMessage(res));
   return res.json();
