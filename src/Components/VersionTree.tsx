@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties, type DragEvent } from "react";
-import { Conflict, fileUrl, isVideo, restoreVersion, uploadFile, type FileEntry, type Version } from "../api";
+import { Conflict, fileUrl, isVideo, kindOf, restoreVersion, uploadFile, type FileEntry, type Version } from "../api";
 import { formatSize, formatWhen } from "../format";
 import { useVersions } from "../hooks/useHistory";
 import Icon from "./Icon";
@@ -207,8 +207,12 @@ export default function VersionTree({
   );
 }
 
-// A small picture of one version: a preview of an image, or a video's first frame.
-function Thumb({ file, version }: { file: FileEntry; version: Version }) {
+// A small picture of one version: a preview of an image, or a video's first frame; for a file
+// the server has no picture of (a PDF, some design files), its kind on a tile instead. The
+// Kisses screen uses it for its rows too.
+export function Thumb({ file, version }: { file: FileEntry; version: Version }) {
+  const [noPicture, setNoPicture] = useState(false);
+  if (noPicture) return <span className="version-thumb type-thumb">{kindOf(file)}</span>;
   return isVideo(file) ? (
     <video
       className="version-thumb"
@@ -218,6 +222,6 @@ function Thumb({ file, version }: { file: FileEntry; version: Version }) {
       playsInline
     />
   ) : (
-    <img className="version-thumb" src={fileUrl(file, 96, 96, version.id)} alt="" loading="lazy" draggable={false} />
+    <img className="version-thumb" src={fileUrl(file, 96, 96, version.id)} alt="" loading="lazy" draggable={false} onError={() => setNoPicture(true)} />
   );
 }

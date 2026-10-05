@@ -1,8 +1,8 @@
 import { useEffect, useState, type ReactNode } from "react";
 import NavBar, { type Screen } from "./Components/NavBar";
 import Home from "./Components/Home";
+import Kisses from "./Components/Kisses";
 import Settings from "./Components/Settings";
-import Stream from "./Components/Stream";
 import Upload from "./Components/Upload";
 import "./App.css";
 
@@ -10,6 +10,7 @@ import "./App.css";
 function App() {
   const [screen, setScreen] = useState<Screen>("home");
   const [dropped, setDropped] = useState<File[] | null>(null); // files dropped on Home, on their way to Upload
+  const [wanted, setWanted] = useState<string | null>(null); // a file picked on Kisses, to open on Home
 
   // A file dropped anywhere but a drop zone would open in the window, in place of the app.
   useEffect(() => {
@@ -32,10 +33,20 @@ function App() {
           setDropped(files);
           setScreen("upload");
         }}
+        open={wanted}
+        onOpened={() => setWanted(null)}
       />
     ),
     upload: <Upload initialFiles={dropped} onConsumed={() => setDropped(null)} />,
-    stream: <Stream />,
+    kisses: (
+      <Kisses
+        onNavigate={setScreen}
+        onOpen={(name) => {
+          setWanted(name);
+          setScreen("home");
+        }}
+      />
+    ),
     settings: <Settings />,
   };
 

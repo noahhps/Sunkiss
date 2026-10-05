@@ -15,7 +15,7 @@ const files = new Hono();
 
 
 // The folder to serve from: server/files, no matter where the server is started.
-const FILES_DIR = path.join(import.meta.dirname, '..', '..', 'files');
+export const FILES_DIR = path.join(import.meta.dirname, '..', '..', 'files');
 
 // Earlier versions of each file: .versions/<name>/, one file per version. Each is named for
 // when that version was saved ("2026-10-01T19-55-28-605Z Logo.svg") and keeps that time as
@@ -43,7 +43,7 @@ export type Link = {
 // names like .versions.
 export const isSafeName = (name: string) => name === path.basename(name) && !name.startsWith('.');
 
-const typeOf = (name: string) =>
+export const typeOf = (name: string) =>
   CONTENT_TYPES[path.extname(name).toLowerCase()] ?? 'application/octet-stream';
     
 const CONTENT_TYPES: Record<string, string> = {
@@ -85,7 +85,7 @@ type Saved = { id: string; path: string; info: Stats; current: boolean };
 
 // Every version of a file, newest first: the current one (when there is one), then the
 // earlier ones from .versions/<name>/.
-async function versionsOf(name: string): Promise<Saved[]> {
+export async function versionsOf(name: string): Promise<Saved[]> {
   const filePath = path.join(FILES_DIR, name);
   const current = await stat(filePath).catch(() => null);
   const folder = path.join(VERSIONS_DIR, name);

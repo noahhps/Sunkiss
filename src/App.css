@@ -13,16 +13,20 @@
    (src-tauri/src/lib.rs); this sheet only draws what's on top of it. */
 
 :root {
-  /* Dark first, as in QuickView; the light versions are below. */
-  --ink: #f4f6fa;
-  --dim: rgba(244, 246, 250, 0.62);
-  --faint: rgba(244, 246, 250, 0.4);
+  /* Dark first, as in QuickView; the light versions are below. The dark is Vercel's: black
+     and near-black, neutral greys with no blue in them, and white text. */
+  --ink: #ededed;
+  --dim: rgba(237, 237, 237, 0.64);
+  --faint: rgba(237, 237, 237, 0.42);
   /* Fills for solid shapes: --pill for controls and rows, stronger on hover, strongest for
      what's selected. --edge is only for lines that aren't the edge of a shape. */
-  --pill: rgba(255, 255, 255, 0.17);
-  --pill-hover: rgba(255, 255, 255, 0.25);
-  --pill-strong: rgba(255, 255, 255, 0.33);
-  --edge: rgba(255, 255, 255, 0.2);
+  --pill: rgba(255, 255, 255, 0.09);
+  --pill-hover: rgba(255, 255, 255, 0.14);
+  --pill-strong: rgba(255, 255, 255, 0.2);
+  --edge: rgba(255, 255, 255, 0.14);
+  /* A hairline round what floats and round panels: on a black page a shadow can't lift a
+     shape off it, so a faint rim does, as Vercel's borders do. Nothing in the light. */
+  --rim: rgba(255, 255, 255, 0.1);
   /* The logo's colours. The sky is the accent, for what you can do. */
   --sky: #008cff;
   --accent: #1a95ff; /* the sky, a touch brighter, so it carries on dark glass */
@@ -32,20 +36,23 @@
   --sun: #ff6744;
   --sun-hover: #ff7d5e;
   --sun-fill: rgba(255, 103, 68, 0.22); /* orange, washed over a surface */
-  /* White panels: the history, the drop zone. */
-  --panel: rgba(255, 255, 255, 0.1);
-  --panel-hover: rgba(255, 255, 255, 0.16);
+  /* Panels: the history, the drop zone. Near-black, a step up from the page. */
+  --panel: rgba(255, 255, 255, 0.05);
+  --panel-hover: rgba(255, 255, 255, 0.09);
   /* Headings: the Mincho faces that come with macOS, then any serif. */
   --display: "Hiragino Mincho ProN", "Songti SC", "Noto Serif CJK JP", "Noto Serif", Georgia, serif;
   --print-edge: rgba(255, 255, 255, 0.42); /* the white border around a thumbnail */
   --warn: #ffd9a8;
   --radius: 18px;
-  --ground: #1a2130; /* a night sky; only used outside the desktop app, where there's no glass */
+  --ground: #000; /* only used outside the desktop app, where there's no glass */
+  /* Over the desktop app's glass, in the dark: a veil of black, so the frost reads as a
+     black page with a breath of what's behind the window, rather than grey. */
+  --veil: rgba(0, 0, 0, 0.55);
   /* A wash over the page, laid out like the logo: sky above, the orange ground below. Faint,
      and fainter still over the desktop app's glass: the colour is in the shapes, not here. */
   --wash:
-    radial-gradient(90% 60% at 100% 0%, rgba(0, 140, 255, 0.24), transparent 60%),
-    radial-gradient(80% 55% at 0% 100%, rgba(255, 103, 68, 0.18), transparent 65%);
+    radial-gradient(90% 60% at 100% 0%, rgba(0, 140, 255, 0.14), transparent 60%),
+    radial-gradient(80% 55% at 0% 100%, rgba(255, 103, 68, 0.1), transparent 65%);
   --sidebar-w: 180px;
   /* The open file's stage: what's left of the window once the page's top padding, the
      timeline, and the room kept for the search bar are taken out. Its history is as tall. */
@@ -53,15 +60,15 @@
 
   /* What floats over the page (the search bar, the buttons pinned along the top): solid
      too, lifted off the page by its shadow, with the page blurred behind it. */
-  --float: rgba(255, 255, 255, 0.21);
-  --float-hover: rgba(255, 255, 255, 0.3);
+  --float: rgba(255, 255, 255, 0.1);
+  --float-hover: rgba(255, 255, 255, 0.15);
   --float-shadow: 0 18px 40px -14px rgba(0, 0, 0, 0.55);
-  /* The sidebar is a solid panel, dark here and white on a pale page, with a hairline where it
-     meets the page. */
-  --sidebar-fill: #1b2130;
-  --sidebar-edge: rgba(255, 255, 255, 0.08);
+  /* The sidebar is a solid panel, near-black here and white on a pale page, with a hairline
+     where it meets the page. */
+  --sidebar-fill: #0a0a0a;
+  --sidebar-edge: rgba(255, 255, 255, 0.1);
   /* Menus need to be read over anything, so their glass is mostly opaque. */
-  --menu-fill: rgba(38, 41, 48, 0.86);
+  --menu-fill: rgba(12, 12, 12, 0.92);
 
   font-family: "Inter Variable", Inter, Avenir, Helvetica, Arial, sans-serif;
   font-size: 16px;
@@ -85,6 +92,8 @@
     --pill-hover: rgba(20, 23, 29, 0.12);
     --pill-strong: rgba(20, 23, 29, 0.16);
     --edge: rgba(20, 23, 29, 0.1);
+    --rim: transparent;
+    --veil: transparent;
     --accent: var(--sky); /* the logo's own blue reads well on a pale page */
     --accent-hover: #1f98ff;
     --sun-fill: rgba(255, 103, 68, 0.2);
@@ -130,6 +139,9 @@ body::before {
 }
 html[data-shell="tauri"] body::before {
   opacity: 0.55;
+}
+html[data-shell="tauri"] body {
+  background: var(--veil);
 }
 
 /* The window's title bar is invisible; this strip along the top is what you drag it by. */
@@ -216,6 +228,14 @@ button:disabled {
   opacity: 0.4;
   cursor: default;
 }
+/* Reached with the keyboard: the accent halo, the same one a field gets, instead of the
+   browser's outline. Shapes that draw their own (a print, a menu row) say so where they are. */
+button:focus-visible,
+select:focus-visible,
+[role="button"]:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--halo);
+}
 
 input:not([type="checkbox"]),
 select {
@@ -282,11 +302,11 @@ svg[data-paint="glyph"] {
      thumbnails passing underneath come through alive. */
   -webkit-backdrop-filter: blur(22px) saturate(170%) brightness(1.08);
   backdrop-filter: blur(22px) saturate(170%) brightness(1.08);
-  box-shadow: var(--float-shadow);
+  box-shadow: inset 0 0 0 1px var(--rim), var(--float-shadow);
   transition: background 140ms ease, box-shadow 140ms ease;
 }
 .composer:focus-within {
-  box-shadow: 0 0 0 3px var(--halo), var(--float-shadow);
+  box-shadow: inset 0 0 0 1px var(--rim), 0 0 0 3px var(--halo), var(--float-shadow);
 }
 .composer input:not([type="checkbox"]) {
   flex: 1;
@@ -295,6 +315,10 @@ svg[data-paint="glyph"] {
   border: none;
   background: transparent;
   font-size: 14px;
+}
+.composer input:not([type="checkbox"]):focus {
+  background: transparent;
+  box-shadow: none; /* the composer wears the halo */
 }
 
 /* Round icon buttons, and the solid accent one that sends. */
@@ -474,7 +498,7 @@ svg[data-paint="glyph"] {
   background: var(--menu-fill);
   -webkit-backdrop-filter: blur(22px) saturate(170%);
   backdrop-filter: blur(22px) saturate(170%);
-  box-shadow: var(--float-shadow);
+  box-shadow: inset 0 0 0 1px var(--rim), var(--float-shadow);
 }
 .menu button {
   display: flex;
@@ -493,6 +517,7 @@ svg[data-paint="glyph"] {
   background: var(--accent);
   color: #fff;
   outline: none;
+  box-shadow: none;
 }
 .menu .tag {
   font-size: 11px;
@@ -513,12 +538,6 @@ svg[data-paint="glyph"] {
   border: none;
   height: 1px;
   background: var(--edge);
-}
-
-.option {
-  margin-top: 10px;
-  font-size: 12.5px;
-  color: var(--dim);
 }
 
 /* Messages ----------------------------------------------------------------- */
@@ -830,7 +849,7 @@ svg[data-paint="glyph"] {
   border-radius: 50%;
   background: var(--float);
   color: var(--dim);
-  box-shadow: var(--float-shadow);
+  box-shadow: inset 0 0 0 1px var(--rim), var(--float-shadow);
   z-index: 1;
 }
 .star-corner svg {
@@ -912,7 +931,10 @@ svg[data-paint="glyph"] {
   transition: border-color 140ms ease, box-shadow 140ms ease;
 }
 .print:hover .frame-wrap {
-  transform: translateY(-2px);
+  transform: translateY(-3px);
+}
+.print:hover :is(img, video, .type-tile) {
+  box-shadow: 0 10px 22px -8px rgba(0, 0, 0, 0.55);
 }
 /* The print that's open: orange, for what's chosen. */
 .print-open[aria-pressed="true"] :is(img, video) {
@@ -921,6 +943,7 @@ svg[data-paint="glyph"] {
 /* Reached with the keyboard: a halo, so Tab shows where it is. */
 .print-open:focus-visible {
   outline: none;
+  box-shadow: none; /* the picture wears the halo */
 }
 .print-open:focus-visible :is(img, video) {
   box-shadow: 0 0 0 3px var(--halo), 0 3px 10px -2px rgba(0, 0, 0, 0.45);
@@ -1072,6 +1095,7 @@ svg[data-paint="glyph"] {
   padding: 10px 6px 8px;
   border-radius: 14px;
   background: var(--panel);
+  box-shadow: inset 0 0 0 1px var(--rim);
   text-align: left;
   transition: background 140ms ease;
 }
@@ -1138,6 +1162,16 @@ svg[data-paint="glyph"] {
   border-radius: 6px;
   background: var(--pill);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+/* A version with no picture to show: its kind, on the tile. */
+.type-thumb {
+  display: grid;
+  place-items: center;
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--dim);
+  background: var(--pill-strong);
 }
 .version-text {
   min-width: 0;
@@ -1326,6 +1360,7 @@ svg[data-paint="glyph"] {
   gap: 6px;
   border-radius: var(--radius);
   background: var(--panel);
+  box-shadow: inset 0 0 0 1px var(--rim);
   cursor: pointer;
   transition:
     transform 420ms cubic-bezier(0.34, 1.56, 0.64, 1),
@@ -1605,38 +1640,165 @@ svg[data-paint="glyph"] {
 }
 .nav-link {
   width: 100%;
-  padding: 7px 12px;
+  padding: 7px 10px;
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 10px;
   border-color: transparent;
   border-radius: 10px;
   background: transparent;
   color: var(--dim);
   text-align: left;
   font-size: 14px;
+  transition: background 140ms ease, color 140ms ease;
 }
-/* A seal beside the page you're on, in orange; the others keep the space. */
-.nav-link::before {
-  content: "";
+/* The page's icon (Icon.tsx), a filled shape; on the page you're on it's orange: the seal. */
+.nav-link svg {
   flex: none;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: transparent;
-  transition: background 140ms ease;
-}
-.nav-link[aria-current="page"]::before {
-  background: var(--sun);
+  width: 17px;
+  height: 17px;
+  color: var(--faint);
+  transition: color 140ms ease;
 }
 .nav-link:hover:not(:disabled) {
   background: var(--pill);
   color: var(--ink);
 }
+.nav-link:hover:not(:disabled) svg {
+  color: var(--dim);
+}
 /* The page you're on: a white pill, with the seal. */
 .nav-link[aria-current="page"] {
   background: var(--pill-strong);
   color: var(--ink);
+}
+.nav-link[aria-current="page"] svg {
+  color: var(--sun);
+}
+/* Settings, at the bottom of the sidebar. */
+.nav-end {
+  margin-top: auto;
+}
+
+/* Settings (Settings.tsx) --------------------------------------------------- */
+
+/* Groups of settings, each under a small title. Nothing is drawn around a group, as in
+   QuickView: its title says where it starts. */
+.settings {
+  width: 100%;
+  max-width: 540px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+  text-align: left;
+}
+.settings-group {
+  margin: 0;
+  padding: 0;
+  border: none;
+  min-width: 0;
+}
+.settings-group legend {
+  padding: 0;
+  margin-bottom: 12px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+/* Each setting is a row: its name in the left column, against the control; the control in
+   the right one, as wide as what it holds. */
+.settings-rows {
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr);
+  column-gap: 16px;
+  row-gap: 10px;
+  align-items: center;
+}
+.setting {
+  display: contents; /* the name and the control are each a cell of the row */
+}
+.setting-label {
+  font-size: 13.5px;
+  text-align: right;
+}
+.setting-value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13.5px;
+  color: var(--dim);
+}
+.settings-rows input:not([type="checkbox"]),
+.settings-rows select {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 320px;
+  font-size: 13.5px;
+}
+/* A field with a button after it: the pair takes the whole column. */
+.setting-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.setting-row input:not([type="checkbox"]) {
+  flex: 1;
+  min-width: 0;
+  max-width: none;
+}
+.setting-row button {
+  flex: none;
+  padding: 0.45em 1em;
+  font-size: 13px;
+}
+/* A checkbox and what it does, in the control column. */
+.setting-check {
+  grid-column: 2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  cursor: pointer;
+}
+.setting-check input {
+  margin: 0;
+}
+/* A word about a group, under its controls. */
+.settings-note {
+  grid-column: 2;
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 18px;
+  color: var(--dim);
+}
+.settings-footer {
+  grid-column: 2;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+/* In a narrow window the name goes above its control. */
+@media (max-width: 760px) {
+  .settings-rows {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 6px;
+  }
+  .setting-label {
+    margin-top: 6px;
+    text-align: left;
+  }
+  .setting-check,
+  .settings-note,
+  .settings-footer {
+    grid-column: auto;
+  }
+  .setting-check {
+    margin-top: 6px;
+  }
 }
 
 /* Design files -------------------------------------------------------------- */
@@ -1695,6 +1857,7 @@ svg[data-paint="glyph"] {
   padding: 10px 6px 8px;
   border-radius: 14px;
   background: var(--panel);
+  box-shadow: inset 0 0 0 1px var(--rim);
   text-align: left;
 }
 .layers-head {
@@ -1808,6 +1971,216 @@ svg[data-paint="glyph"] {
   color: var(--dim);
 }
 
+/* Kisses (Kisses.tsx) ------------------------------------------------------- */
+
+.kisses-screen > :not(h1) {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 760px;
+  align-self: center;
+}
+.kisses-screen > section {
+  text-align: left;
+}
+/* The year in figures, set in the heading face, the way the headings are. */
+.figures {
+  margin: 0 0 30px;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px 40px;
+}
+.figure {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.figure-number {
+  font-family: var(--display);
+  font-size: 32px;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.figure-label {
+  font-size: 12px;
+  color: var(--dim);
+}
+
+/* The year: a line a month, newest at the top, straight on the glass, with a mark on it for
+   every day: a faint dot for a day nothing happened, a sun for a day something was kissed
+   in, bigger and brighter the more. Today is the sky's blue, as "now" is on the timeline.
+   Column 1 is the month's name; a day's column is its number (Kisses.tsx). */
+.year {
+  display: grid;
+  grid-template-columns: auto repeat(31, minmax(0, 1fr));
+  gap: 3px 2px;
+  align-items: center;
+}
+.month-name {
+  padding-right: 12px;
+  font-size: 11px;
+  line-height: 1;
+  white-space: nowrap;
+  color: var(--dim);
+  font-variant-numeric: tabular-nums;
+}
+.day-mark {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+}
+.day-mark::before {
+  content: "";
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--faint);
+  opacity: 0.55;
+}
+.day-mark[data-today]::before {
+  width: 5px;
+  height: 5px;
+  background: var(--accent);
+  opacity: 1;
+  box-shadow: 0 0 0 2px rgba(0, 140, 255, 0.22);
+}
+/* A kissed day: the logo's sun, in place of the dot. */
+.day-mark[data-level]::before {
+  content: none;
+}
+.day-mark svg {
+  width: var(--sun-size, 9px);
+  height: var(--sun-size, 9px);
+  color: var(--sun);
+  filter: drop-shadow(0 0 var(--sun-glow, 2px) rgba(255, 103, 68, 0.75));
+}
+.day-mark[data-level="1"] {
+  --sun-size: 7px;
+  --sun-glow: 1px;
+}
+.day-mark[data-level="2"] {
+  --sun-size: 9px;
+  --sun-glow: 2px;
+}
+.day-mark[data-level="3"] {
+  --sun-size: 11px;
+  --sun-glow: 3px;
+}
+.day-mark[data-level="4"] {
+  --sun-size: 13px;
+  --sun-glow: 4px;
+}
+.year-note {
+  margin: 14px 0 0;
+  text-align: center;
+}
+
+/* The files kissed most, as prints (Print.tsx), each with its count beneath in orange: the
+   colour of what's chosen. */
+.most-kissed {
+  padding: 8px 0 0;
+}
+.most {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.tally {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--sun);
+  font-variant-numeric: tabular-nums;
+}
+.most-kissed + .note {
+  margin: 4px 0 0;
+  text-align: center;
+}
+
+/* Every kiss, by day, in rows like the history's, under a day's name with the timeline's
+   seal beside it: orange, and the sky's blue for the newest day. Each row opens its file. */
+.kiss-day {
+  margin-top: 16px;
+}
+.kiss-day h3 {
+  margin: 0 0 4px;
+  padding: 0 8px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 22px;
+}
+.kiss-day h3::before {
+  content: "";
+  flex: none;
+  align-self: center;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--sun);
+  box-shadow: 0 0 0 3px var(--sun-fill);
+}
+.kiss-day:first-of-type h3::before {
+  background: var(--accent);
+  box-shadow: 0 0 0 3px rgba(0, 140, 255, 0.22);
+}
+.kiss-day h3 span {
+  font-size: 11.5px;
+  font-weight: 400;
+  color: var(--faint);
+}
+.kiss-day ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.kiss-row {
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 8px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: none;
+  text-align: left;
+}
+.kiss-row:hover:not(:disabled) {
+  background: var(--pill);
+}
+.kiss-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 17px;
+}
+.kiss-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 500;
+}
+.kiss-meta {
+  font-size: 11px;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+/* The file's current version, marked the way the history marks it. */
+.kiss-meta .current {
+  color: var(--sun);
+}
+
 /* From Figma (FigmaImport.tsx), on the Upload screen ------------------------- */
 
 .section-title {
@@ -1841,6 +2214,7 @@ svg[data-paint="glyph"] {
   padding: 12px 14px 10px;
   border-radius: var(--radius);
   background: var(--panel);
+  box-shadow: inset 0 0 0 1px var(--rim);
 }
 .figma-name {
   margin: 0 0 6px;

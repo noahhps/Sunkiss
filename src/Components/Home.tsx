@@ -48,13 +48,18 @@ const sliding = (target: EventTarget | null) => target instanceof HTMLElement &&
 // either view to names containing what's typed. Refresh, top left, asks the server for the
 // list again. Files dropped anywhere on the page go to the Upload screen, already chosen.
 // Right-clicking a print, in the grid or on the timeline, opens its actions as a cluster of
-// chips at the pointer (FileMenu.tsx).
+// chips at the pointer (FileMenu.tsx). Another screen can ask for a file to be open when Home
+// shows (`open`, a file's name; the Kisses screen does), the way dropped files go to Upload.
 export default function Home({
   onNavigate,
   onDropFiles,
+  open: wanted,
+  onOpened,
 }: {
   onNavigate: (screen: Screen) => void;
   onDropFiles: (files: File[]) => void;
+  open?: string | null;
+  onOpened?: () => void;
 }) {
   const { files, error, loading, refreshing, refresh, asked, update } = useFiles();
   const [query, setQuery] = useState(""); // what's typed so far
@@ -87,6 +92,16 @@ export default function Home({
     setViewing(null);
     setComparing(false);
   };
+
+  // A file another screen asked for: open it by name (the list may still be on its way; the
+  // stage finds it once it's in), then tell that screen it's been taken.
+  useEffect(() => {
+    if (!wanted) return;
+    setOpenName(wanted);
+    setViewing(null);
+    setComparing(false);
+    onOpened?.();
+  }, [wanted]);
 
   // Keyboard: / to search; with a file open, ← and → to the files either side of it on the
   // timeline, and Escape back to the grid.

@@ -160,6 +160,21 @@ export function uploadFile(
   });
 }
 
+/** One kiss: a version of a file, as it was kissed in (saved). The file's name and type, the
+ * version's id (what ?V= takes), its size, when it was saved, and whether it's the file's
+ * current version. The Kisses screen is made of these. */
+export type Kiss = { name: string; type: string; id: string; size: number; modified: string; current: boolean };
+
+/** Every saved version of every file, newest first (GET /activity). Straight to the server
+ * even in the desktop app: its sunkiss:// address only carries the file routes. */
+export async function listActivity(): Promise<Kiss[]> {
+  const res = await fetch(`${SERVER}/activity`).catch(() => {
+    throw new Error("Couldn't reach the server");
+  });
+  if (!res.ok) throw new Error(failureMessage(res));
+  return res.json();
+}
+
 /** Every saved version of one file, newest first (GET /files/:name/versions). */
 export async function listVersions(name: string): Promise<Version[]> {
   const res = await fetch(`${FILES}/${encodeURIComponent(name)}/versions`);

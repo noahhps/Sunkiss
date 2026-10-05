@@ -1,11 +1,13 @@
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { IN_DESKTOP_APP } from "../api";
 import { appsForKind, type App } from "../drive";
 import { setFigmaToken, useFigmaToken } from "../figma";
 import { chooseApp, useChosenApp, type Kind } from "../preferences";
 
-// Settings. "Open files in" and the Figma token are real and apply right away; the rest is
-// still filler: every control responds, but nothing is saved yet.
+// Settings, laid out the way macOS does them: each setting is a row, its name on the left and
+// its control on the right (App.css, .settings). "Open files in" and the Figma token are real
+// and apply right away; the rest is still filler: every control responds, but nothing is
+// saved yet.
 export default function Settings() {
   const [displayName, setDisplayName] = useState("");
   const [theme, setTheme] = useState("system");
@@ -20,93 +22,103 @@ export default function Settings() {
       <h1>Settings</h1>
 
       <form
-        style={styles.form}
+        className="settings"
         onChange={() => setSaved(false)}
         onSubmit={(e) => {
           e.preventDefault();
           setSaved(true);
         }}
       >
-        <fieldset style={styles.section}>
-          <legend style={styles.legend}>Open files in</legend>
+        <Group title="Open files in">
           <OpenWith kind="image" label="Images" />
           <OpenWith kind="video" label="Videos" />
-          <p style={styles.muted}>
+          <p className="settings-note">
             {IN_DESKTOP_APP
               ? "What “Open in” on a file uses. Changes apply right away."
               : "Only in the desktop app, which can see the apps on this Mac."}
           </p>
-        </fieldset>
+        </Group>
 
-        <fieldset style={styles.section}>
-          <legend style={styles.legend}>Figma</legend>
+        <Group title="Figma">
           <FigmaToken />
-        </fieldset>
+        </Group>
 
-        <fieldset style={styles.section}>
-          <legend style={styles.legend}>General</legend>
-          <label style={styles.field}>
-            Display name
+        <Group title="General">
+          <label className="setting">
+            <span className="setting-label">Display name</span>
             <input value={displayName} onChange={(e) => setDisplayName(e.currentTarget.value)} placeholder="Your name" />
           </label>
-          <label style={styles.field}>
-            Theme
+          <label className="setting">
+            <span className="setting-label">Theme</span>
             <select value={theme} onChange={(e) => setTheme(e.currentTarget.value)}>
               <option value="system">Match system</option>
               <option value="light">Light</option>
               <option value="dark">Dark</option>
             </select>
           </label>
-        </fieldset>
+        </Group>
 
-        <fieldset style={styles.section}>
-          <legend style={styles.legend}>Server</legend>
-          <label style={styles.field}>
-            Server URL
+        <Group title="Server">
+          <label className="setting">
+            <span className="setting-label">Server URL</span>
             <input value={serverUrl} onChange={(e) => setServerUrl(e.currentTarget.value)} />
           </label>
-        </fieldset>
+        </Group>
 
-        <fieldset style={styles.section}>
-          <legend style={styles.legend}>Files</legend>
-          <label style={styles.checkRow}>
+        <Group title="Files">
+          <label className="setting-check">
             <input type="checkbox" checked={showPreviews} onChange={(e) => setShowPreviews(e.currentTarget.checked)} />
             Show image previews
           </label>
-          <label style={styles.field}>
-            Keep deleted files for
+          <label className="setting">
+            <span className="setting-label">Keep deleted files for</span>
             <select value={keepDeletedDays} onChange={(e) => setKeepDeletedDays(e.currentTarget.value)}>
               <option value="7">7 days</option>
               <option value="30">30 days</option>
               <option value="90">90 days</option>
             </select>
           </label>
-        </fieldset>
+        </Group>
 
-        <fieldset style={styles.section}>
-          <legend style={styles.legend}>Notifications</legend>
-          <label style={styles.checkRow}>
+        <Group title="Notifications">
+          <label className="setting-check">
             <input type="checkbox" checked={notify} onChange={(e) => setNotify(e.currentTarget.checked)} />
             Notify me when someone updates a file
           </label>
-        </fieldset>
+        </Group>
 
-        <fieldset style={styles.section}>
-          <legend style={styles.legend}>About</legend>
-          <p style={styles.muted}>Sunkiss 0.1.0</p>
-          <p style={styles.muted}>Connected to {serverUrl}</p>
-        </fieldset>
+        <Group title="About">
+          <div className="setting">
+            <span className="setting-label">Version</span>
+            <span className="setting-value">Sunkiss 0.1.0</span>
+          </div>
+          <div className="setting">
+            <span className="setting-label">Connected to</span>
+            <span className="setting-value">{serverUrl}</span>
+          </div>
+        </Group>
 
-        <button type="submit" className="primary" style={styles.save}>
-          Save
-        </button>
-        {saved && (
-          <p className="note fade-in" style={styles.muted}>
-            Saved (not really yet: this screen is filler).
-          </p>
-        )}
+        <div className="settings-rows">
+          <div className="settings-footer">
+            <button type="submit" className="primary">
+              Save
+            </button>
+            {saved && <span className="note fade-in">Saved (not really yet: this screen is filler).</span>}
+          </div>
+        </div>
       </form>
     </main>
+  );
+}
+
+// A group of settings under a small title. Nothing is drawn around it, as in QuickView: the
+// title says where it starts. Inside, the rows line up in two columns (.settings-rows).
+function Group({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <fieldset className="settings-group">
+      <legend>{title}</legend>
+      <div className="settings-rows">{children}</div>
+    </fieldset>
   );
 }
 
@@ -118,9 +130,9 @@ function FigmaToken() {
   const changed = draft.trim() !== token;
   return (
     <>
-      <label style={styles.field}>
-        Personal access token
-        <span style={styles.rowInline}>
+      <label className="setting">
+        <span className="setting-label">Personal access token</span>
+        <span className="setting-row">
           <input
             type="password"
             value={draft}
@@ -128,14 +140,13 @@ function FigmaToken() {
             placeholder="figd_…"
             autoComplete="off"
             spellCheck={false}
-            style={{ flex: 1 }}
           />
           <button type="button" className="primary" disabled={!changed} onClick={() => setFigmaToken(draft)}>
             {token && !draft.trim() ? "Forget" : "Save"}
           </button>
         </span>
       </label>
-      <p style={styles.muted}>
+      <p className="settings-note">
         {token ? "Set. " : ""}Make one in Figma under Settings › Security › Personal access tokens; read access to files is enough. It
         stays on this device and lets the Upload screen snapshot frames from Figma.
       </p>
@@ -157,8 +168,8 @@ function OpenWith({ kind, label }: { kind: Kind; label: string }) {
   const choices = chosen && !apps.some((app) => app.path === chosen.path) ? [...apps, chosen] : apps;
 
   return (
-    <label style={styles.field}>
-      {label}
+    <label className="setting">
+      <span className="setting-label">{label}</span>
       <select
         value={chosen?.path ?? ""}
         disabled={!IN_DESKTOP_APP}
@@ -176,15 +187,3 @@ function OpenWith({ kind, label }: { kind: Kind; label: string }) {
     </label>
   );
 }
-
-const styles = {
-  form: { maxWidth: 480, width: "100%", margin: "0 auto", textAlign: "left", display: "flex", flexDirection: "column", gap: 28 },
-  // Nothing is drawn around a group, as in QuickView: its label says where it starts.
-  section: { margin: 0, padding: 0, border: "none", display: "flex", flexDirection: "column", gap: 12 },
-  legend: { padding: 0, marginBottom: 10, fontSize: 11, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--dim)" },
-  field: { display: "flex", flexDirection: "column", gap: 6, fontSize: 13.5 },
-  checkRow: { display: "flex", alignItems: "center", gap: 8, fontSize: 13.5 },
-  rowInline: { display: "flex", alignItems: "center", gap: 8 },
-  muted: { margin: 0, fontSize: 13.5, color: "var(--dim)" },
-  save: { alignSelf: "flex-start" },
-} satisfies Record<string, CSSProperties>;
