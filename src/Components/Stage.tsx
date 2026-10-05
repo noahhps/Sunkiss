@@ -1,13 +1,11 @@
 import { useEffect, useState } from "react";
-import { fileUrl, isVideo, type FileEntry, type Version } from "../api";
-import { formatWhen } from "../format";
+import { fileUrl, isVideo, isViewable, kindLabel, type FileEntry, type Version } from "../api";
+import { formatSize, formatWhen } from "../format";
 import { useObjectUrl } from "../hooks/useObjectUrl";
 import { useSessionFile } from "../hooks/useSessionFile";
 import { useStream } from "../hooks/useStream";
 import { touch } from "../sessionCache";
 import Tilt from "./Tilt";
-
-const kb = (bytes: number) => `${Math.round(bytes / 1024).toLocaleString()} KB`;
 
 // The selected file, large: its current version, or with `version`, an earlier one, labelled
 // as such. A file kept for this session opens straight from memory, at full size, with no
@@ -28,7 +26,14 @@ export default function Stage({ file, version }: { file: FileEntry; version?: Ve
   return (
     <section className="preview stage">
       {version && <p className="stage-label">Earlier version · {formatWhen(version.modified)}</p>}
-      {isVideo(file) ? (
+      {!isViewable(file) ? (
+        // Nothing the page can draw (a PSD, a PDF): say what it is, and the actions top right
+        // (Open in…, Download) are how to see it.
+        <div className="stage-kind fade-in">
+          <span className="print-tile">{kindLabel(file.name)}</span>
+          <p className="note">No preview for this kind of file · {formatSize(version?.size ?? file.size)}</p>
+        </div>
+      ) : isVideo(file) ? (
         <Player key={`${file.name}@${id}`} file={file} version={id} kept={kept?.blob} />
       ) : kept ? (
         <KeptImage file={file} blob={kept.blob} />
@@ -67,7 +72,7 @@ function StreamedImage({ file, version }: { file: FileEntry; version: string }) 
   if (preview.status === "loading") {
     return (
       <p className="waiting">
-        Streaming {file.name}… {kb(preview.received)}
+        Streaming {file.name}… {formatSize(preview.received)}
       </p>
     );
   }

@@ -85,7 +85,7 @@ function OpenIn({ file }: { file: FileEntry }) {
         <Icon name="chevron" />
       </button>
       {menuOpen && apps && (
-        <div className="menu fade-in" role="menu">
+        <div className="menu" role="menu">
           {apps.length === 0 && <p className="menu-note">Nothing on this Mac opens this kind of file</p>}
           {apps.map((app) => (
             <button

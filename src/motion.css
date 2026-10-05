@@ -1,0 +1,86 @@
+/* How Sunkiss moves. Every duration and curve the app uses lives here, so the whole app
+   moves in one voice, and App.css only says *what* moves, not how.
+
+   Two ideas run through it:
+   - Things you press answer on the press (pointer-down), not on release.
+   - Nothing bounces unless your hand gave it the energy to. A menu that opens settles
+     without overshoot; a card you flick, or a file you drag in, may overshoot a touch. */
+
+:root {
+  /* Curves. ease-out for anything arriving or answering you (it moves most in the first
+     frames, while you're watching); ease-in-out for something travelling across the screen.
+     No ease-in anywhere: starting slow reads as lag. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease: cubic-bezier(0.25, 0.1, 0.25, 1); /* colour and fill changes */
+
+  /* Springs, as Apple describes them: a damping ratio (1 = no overshoot) and a response
+     (how soon it gets there, in seconds). CSS can't run a spring, so these are springs
+     sampled into linear() curves. The duration paired with each is how long it takes to
+     settle; most of the movement is over in the first half of it.
+     Generated from damping/response with a small integrator; see src/motion.ts for the
+     same springs in JS. */
+  /* damping 1, response 0.35: the default. Gets there briskly and settles without overshoot. */
+  --spring: linear(0, 0.0586, 0.1734, 0.3048, 0.432, 0.5456, 0.6421, 0.718, 0.7826, 0.8337, 0.8736,
+    0.9045, 0.9281, 0.9461, 0.9598, 0.97, 0.9777, 0.9835, 0.9878, 0.9908, 0.9932, 0.995, 0.9963,
+    0.9973, 1);
+  --spring-ms: 480ms;
+  /* damping 0.8, response 0.4: overshoots by ~1.4%, then settles. Only after momentum:
+     something thrown, dragged in, or tilted by the hand. */
+  --spring-bouncy: linear(0, 0.0263, 0.0845, 0.1628, 0.252, 0.3518, 0.4437, 0.5308, 0.6111, 0.6833,
+    0.7468, 0.8017, 0.8483, 0.8871, 0.921, 0.9461, 0.966, 0.9813, 0.9928, 1.0011, 1.0069, 1.0107,
+    1.0129, 1.0139, 1.014, 1.0135, 1.0126, 1.0114, 1.0102, 1.0088, 1.0076, 1.0064, 1.0052, 1.0042,
+    1.0033, 1.0026, 1);
+  --spring-bouncy-ms: 510ms;
+
+  /* Durations, by what's moving. Under 300ms for anything in the way of what you're doing. */
+  --press: 120ms; /* a button going down under the pointer */
+  --hover: 150ms; /* fills and colours */
+  --pop: 180ms; /* menus and other small things that appear by a control */
+  --enter: 260ms; /* content arriving: an image, a row, a panel */
+
+  /* How far a pressed thing goes down. Larger shapes go down less, so they set their own. */
+  --press-scale: 0.97;
+}
+
+/* Arriving -----------------------------------------------------------------------------
+   One keyframe for everything that appears. Each use says where it comes from with:
+     --rise   how far below (or, negative, above) it starts
+     --shift  how far to the right (or, negative, the left) it starts
+     --from-scale  how small it starts (never 0: nothing in the world appears from nothing)
+     --from-blur   how out of focus it starts, so a picture "develops" rather than fades
+   It uses the individual translate/scale properties, never `transform`, so it can't
+   clobber a transform the element already has (a hover lift, a centring translate).
+   Fill mode is `backwards`: the start state holds through any delay, and once it's done
+   nothing is left on the element (a leftover filter would cost every frame after). */
+@keyframes enter {
+  from {
+    opacity: 0;
+    translate: var(--shift, 0px) var(--rise, 0px);
+    scale: var(--from-scale, 1);
+    filter: blur(var(--from-blur, 0px));
+  }
+}
+
+/* Pressing -----------------------------------------------------------------------------
+   Every button goes down a little the moment it's pressed. `scale` rather than
+   `transform`, for the same reason as above. */
+button:not(:disabled):active {
+  scale: var(--press-scale);
+}
+
+/* Reduced motion -----------------------------------------------------------------------
+   Fewer, gentler animations, not none. Things still fade and come into focus (that helps
+   you see what changed), but nothing travels or grows, and nothing goes down when pressed.
+   Because every entrance reads its distances from the variables above, zeroing them here
+   gives every one a reduced version for free. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    --rise: 0px !important;
+    --shift: 0px !important;
+    --from-scale: 1 !important;
+    --press-scale: 1 !important;
+  }
+}

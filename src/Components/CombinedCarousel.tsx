@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from "react";
 import { fileUrl, type FileEntry } from "../api";
+import { project, rubberband, SETTLE, spring, THROWN, tracker, type Spring } from "../motion";
 import "./CombinedCarousel.css";
 
 /* ── Physics utilities ───────────────────────────────────────────────────── */
@@ -61,11 +62,8 @@ const SPREAD = 150; // px from the front card to each side card (the block's 138
 const CORNER = 18;
 const FLOAT = 15;
 const SINK = 50;
-const SETTLE = 50;
 const PULL = SPREAD; // px of drag per step: the same as the spread, so a card stays under the finger
-const TOSS = 150; // ms travel look‑ahead for flick
-const MOST = 2; // safeguard max skip on flick
-const BASE = 620;
+const MOST = 2; // the furthest a flick can carry, however hard it's thrown
 const PERIOD = [4.7, 5.9, 6.7, 5.3]; // s per bob; they don't divide into each other, so the cards never bob in unison
 const ANGLE = [-4.2, 2.6, -1.4, 3.8, 1.7]; // each card's own resting lean
 
@@ -115,9 +113,8 @@ export default function CombinedCarousel({ images }: { images: FileEntry[] }) {
   const slots = useRef<(HTMLDivElement | null)[]>([]);
   // Which image is in front: a whole number at rest, in between while moving
   const turn = useRef(0);
-  const heading = useRef<number | null>(null); // where a glide is going, while it goes
-  const raf = useRef(0);
-  const drag = useRef<{ x0: number; t0: number; last: number; t: number; vx: number; moved: boolean; index: number } | null>(null);
+  const drag = useRef<{ x0: number; t0: number; moved: boolean; index: number } | null>(null);
+  const pointer = useRef(tracker()); // the finger's recent moves, for its speed when it lets go
   const [held, setHeld] = useState(false);
   const [front, setFront] = useState(0); // the image nearest the front, for the caption
   const shown = useRef(0);
@@ -151,29 +148,25 @@ export default function CombinedCarousel({ images }: { images: FileEntry[] }) {
     if (nearest !== shown.current) setFront((shown.current = nearest));
   };
 
-  /* ── Glide to a whole turn after interaction ─────── */
-  const rate = (speed: number) => 1.6 - (speed / 100) * 1.2;
-  const out = (v: number) => 1 - Math.pow(1 - v, 4); // fast, then easing into place
-  const glide = (to: number) => {
-    cancelAnimationFrame(raf.current);
-    const from = turn.current;
-    if (still || from === to) {
-      turn.current = to;
-      heading.current = null;
-      paint();
-      return;
-    }
-    heading.current = to;
-    const ms = BASE * rate(clamp(SETTLE, 0, 100));
-    const t0 = performance.now();
-    const tick = (now: number) => {
-      const p = Math.min(1, (now - t0) / ms);
-      turn.current = mix(from, to, out(p));
-      paint();
-      if (p < 1) raf.current = requestAnimationFrame(tick);
-      else heading.current = null;
-    };
-    raf.current = requestAnimationFrame(tick);
+  /* ── The turn, sprung ───────────────────────────────
+     Not a fixed-length glide: a spring, which always starts from where the cards are now and
+     how fast they're already going. So a glide can be caught mid-way by a finger (it stops
+     right there, nothing jumps), redirected by another key press (it bends toward the new
+     card without stopping first), or handed the finger's speed when a drag is let go (no
+     seam between dragging and gliding). The spring is made once; it paints through a ref so
+     it always uses this render's paint, not the first one's. */
+  const painter = useRef(paint);
+  painter.current = paint;
+  const motion = useRef<ReturnType<typeof spring> | null>(null);
+  motion.current ??= spring((value) => {
+    turn.current = value;
+    painter.current();
+  });
+  // Put the cards at a turn at once: under a dragging finger, or when things shift underneath.
+  const place = (to: number) => motion.current!.set(to);
+  const glide = (to: number, options: { velocity?: number; spring?: Spring } = {}) => {
+    if (still) place(to);
+    else motion.current!.to(to, { spring: SETTLE, ...options });
   };
 
   // A new image arrives at the front of the list, which moves the others along, so first the
@@ -192,7 +185,7 @@ export default function CombinedCarousel({ images }: { images: FileEntry[] }) {
       // To the turn that puts that image in front now (keeping any part-way), since with
       // one more image round the loop, the old turn can stand for a different image.
       const moved = now - Math.round(turn.current);
-      turn.current += moved;
+      place(turn.current + moved);
       if (drag.current) drag.current.t0 += moved;
     }
     paint();
@@ -201,22 +194,21 @@ export default function CombinedCarousel({ images }: { images: FileEntry[] }) {
 
   // Place the cards after every render (a new card has to be put somewhere before it shows).
   useLayoutEffect(() => paint());
-  useEffect(() => () => cancelAnimationFrame(raf.current), []);
+  useEffect(() => () => motion.current?.stop(), []);
 
   /* ── Drag handling ──────────────────────────────────────── */
   const down = (e: PointerEvent<HTMLDivElement>) => {
-    cancelAnimationFrame(raf.current);
-    heading.current = null;
+    if (drag.current) return; // a second finger doesn't take over the drag
+    motion.current!.stop(); // caught: the cards stop where they are, mid-glide or not
     const slot = (e.target as HTMLElement).closest<HTMLElement>("[data-index]");
     drag.current = {
       x0: e.clientX,
       t0: turn.current,
-      last: e.clientX,
-      t: e.timeStamp,
-      vx: 0,
       moved: false,
       index: Number(slot?.dataset.index ?? -1),
     };
+    pointer.current.reset();
+    pointer.current.add(e.clientX, e.timeStamp);
     setHeld(true);
     try {
       e.currentTarget.setPointerCapture(e.pointerId);
@@ -228,26 +220,28 @@ export default function CombinedCarousel({ images }: { images: FileEntry[] }) {
     if (!g || count < 2) return;
     const dx = e.clientX - g.x0;
     if (!g.moved && Math.abs(dx) > 3) g.moved = true;
-    const dt = Math.max(1, e.timeStamp - g.t);
-    g.vx = (g.vx + (e.clientX - g.last) / dt) / 2;
-    g.last = e.clientX;
-    g.t = e.timeStamp;
-    let to = g.t0 - dx / PULL; // dragged left: along to older images
-    // With nothing further that way, the cards give a little, reluctantly.
-    if (!loops) to = to < 0 ? to / 3 : to > count - 1 ? count - 1 + (to - count + 1) / 3 : to;
-    turn.current = to;
-    paint();
+    pointer.current.add(e.clientX, e.timeStamp);
+    let to = g.t0 - dx / PULL; // dragged left: along to older images; 1:1 with the finger
+    // With nothing further that way, the cards give, less the further they're pulled.
+    if (!loops) {
+      const last = count - 1;
+      if (to < 0) to = -rubberband(-to * PULL, PULL * 2) / PULL;
+      else if (to > last) to = last + rubberband((to - last) * PULL, PULL * 2) / PULL;
+    }
+    place(to);
   };
 
-  const up = () => {
+  const up = (e: PointerEvent<HTMLDivElement>) => {
     const g = drag.current;
     if (!g) return;
     drag.current = null;
     setHeld(false);
     if (g.moved) {
-      // A flick carries on a step or two, depending on how hard it was thrown.
-      const carry = clamp((-g.vx * TOSS) / PULL, -MOST, MOST);
-      glide(stop(Math.round(turn.current + carry)));
+      // Where the cards would come to rest if they coasted, as a scroll does, decides which
+      // card to stop on; then they go there carrying the finger's speed, with a little give.
+      const speed = pointer.current.velocity(e.timeStamp); // px per second, + is rightward
+      const carry = clamp(project(-speed) / PULL, -MOST, MOST);
+      glide(stop(Math.round(turn.current + carry)), { velocity: -speed / PULL, spring: THROWN });
     } else if (g.index >= 0) {
       glide(stop(Math.round(turn.current + away(g.index)))); // a side card, clicked: to the front
     } else {
@@ -259,8 +253,10 @@ export default function CombinedCarousel({ images }: { images: FileEntry[] }) {
     const d = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
     if (!d || count < 2) return;
     e.preventDefault();
-    // From where it's already going, so pressing twice quickly goes two along.
-    glide(stop((heading.current ?? Math.round(turn.current)) + d));
+    // From where it's already going, so pressing twice quickly goes two along, the second
+    // press bending the glide that's under way rather than starting a new one.
+    const m = motion.current!;
+    glide(stop((m.moving ? m.target : Math.round(turn.current)) + d));
   };
 
   if (count === 0) return null;

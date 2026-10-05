@@ -1,16 +1,23 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { FileEntry } from "../api";
+import { formatCount, whenOf } from "../format";
 import Print from "./Print";
 
-type Day = { key: string; date: Date; files: FileEntry[] };
+// How many prints the timeline strings out at first, and how many more each "Show more" adds.
+const PAGE = 200;
+
+// A day of files; `date` is null for the files whose date isn't known.
+type Day = { key: string; date: Date | null; files: FileEntry[] };
 
 // Splits files (already newest first) into runs that share a calendar day, in the
-// viewer's own time zone.
+// viewer's own time zone. A date in the future counts as today; an unknown one goes in a
+// group of its own (see whenOf).
 function groupByDay(files: FileEntry[]): Day[] {
   const days: Day[] = [];
   for (const file of files) {
-    const date = new Date(file.modified);
-    const key = date.toDateString();
+    const time = whenOf(file.modified);
+    const date = time === null ? null : new Date(time);
+    const key = date?.toDateString() ?? "unknown";
     const current = days[days.length - 1];
     if (current?.key === key) current.files.push(file);
     else days.push({ key, date, files: [file] });
@@ -38,7 +45,8 @@ const fullDate = (date: Date) =>
 
 // The files as a timeline that scrolls sideways: a line across the top with a dot where
 // each day starts, and that day's files in a row beneath it. `files` must already be
-// sorted newest first; the newest sit at the left.
+// sorted newest first; the newest sit at the left. A long history shows its newest few
+// hundred (always including the open file), with the rest a click away.
 export default function Timeline({
   files,
   selected,
@@ -50,13 +58,22 @@ export default function Timeline({
 }) {
   const list = useRef<HTMLOListElement>(null);
   const opening = useRef(true);
+  const [limit, setLimit] = useState(PAGE);
+
+  const at = selected ? files.findIndex((file) => file.name === selected.name) : -1;
+  const shown = files.slice(0, Math.max(limit, at + 1 + 20));
 
   // Bring the chosen file to the middle of the strip: straight there when the timeline
-  // opens, gliding when you pick another from it.
+  // opens, gliding when you pick another from it. Only the strip scrolls, sideways:
+  // scrollIntoView would scroll the page too, sliding the stage under the buttons pinned
+  // along the top.
   useEffect(() => {
-    list.current?.querySelector('[aria-pressed="true"]')?.scrollIntoView({
-      block: "nearest",
-      inline: "center",
+    const strip = list.current;
+    const print = strip?.querySelector<HTMLElement>('[aria-pressed="true"]');
+    if (!strip || !print) return;
+    const offset = print.getBoundingClientRect().left - strip.getBoundingClientRect().left;
+    strip.scrollTo({
+      left: strip.scrollLeft + offset - (strip.clientWidth - print.offsetWidth) / 2,
       behavior: opening.current ? "instant" : "smooth",
     });
     opening.current = false;
@@ -66,15 +83,15 @@ export default function Timeline({
 
   return (
     <ol className="timeline" ref={list}>
-      {groupByDay(files).map((day) => {
-        const relative = relativeDay(day.date);
+      {groupByDay(shown).map((day) => {
+        const relative = day.date && relativeDay(day.date);
         return (
           <li key={day.key} className="day">
             <header className="day-head">
-              <h2>{relative ?? fullDate(day.date)}</h2>
+              <h2>{day.date ? (relative ?? fullDate(day.date)) : "Unknown date"}</h2>
               <span className="day-meta">
-                {relative && `${fullDate(day.date)} · `}
-                {day.files.length} {day.files.length === 1 ? "item" : "items"}
+                {relative && day.date && `${fullDate(day.date)} · `}
+                {formatCount(day.files.length)} {day.files.length === 1 ? "item" : "items"}
               </span>
             </header>
             <div className="prints">
@@ -90,6 +107,13 @@ export default function Timeline({
           </li>
         );
       })}
+      {files.length > shown.length && (
+        <li className="show-more-item">
+          <button type="button" className="show-more" onClick={() => setLimit(shown.length + PAGE)}>
+            Show more · {formatCount(files.length - shown.length)} left
+          </button>
+        </li>
+      )}
     </ol>
   );
 }

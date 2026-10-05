@@ -211,7 +211,7 @@ function Row({
         </span>
         {item.status === "sending" && (
           <span className="upload-progress">
-            <span style={{ width: `${percent}%` }} />
+            <span style={{ transform: `scaleX(${percent / 100})` }} />
           </span>
         )}
       </div>

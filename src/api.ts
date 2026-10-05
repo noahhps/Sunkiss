@@ -1,4 +1,5 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
+import { dataMode, fixtureFiles, fixtureVersions, isFixture, pictureFor } from "./dev/worstCase";
 
 // Where the server is, and how to build URLs for its files.
 export const SERVER = "http://localhost:8787";
@@ -46,9 +47,30 @@ export const isResizable = (file: FileEntry) => RESIZABLE.includes(file.type);
 /** Whether a file is a video, which plays as it streams instead of downloading first. */
 export const isVideo = (file: FileEntry) => file.type.startsWith("video/");
 
+/** Whether the page can show the file itself: an image or a video. Anything else (a PSD, a
+ * PDF, a Figma export) is still a file in Sunkiss, shown by its kind instead of a picture. */
+export const isViewable = (file: FileEntry) => file.type.startsWith("image/") || isVideo(file);
+
+/** A file's kind, from its name, for labels: "PSD", "PNG", or "FILE" when the name doesn't say. */
+export const kindLabel = (name: string) => {
+  const dot = name.lastIndexOf(".");
+  return (dot > 0 ? name.slice(dot + 1) : "file").slice(0, 4).toUpperCase();
+};
+
 /** URL for a file. With a width and/or height, asks the server for a copy that fits within them.
  * With a version (an id from listVersions), it's that version of the file. */
 export function fileUrl(file: FileEntry, width?: number, height?: number, version = file.version): string {
+  // Dev only: a fixture file shows the picture it borrows (see src/dev/worstCase.ts).
+  if (import.meta.env.DEV && isFixture(file.name)) {
+    const picture = pictureFor(file.name);
+    if (typeof picture === "string") return picture;
+    if (!picture) return `${FILES}/${encodeURIComponent(file.name)}`; // not on the server: won't load
+    return serverUrl(picture, width, height, picture.version);
+  }
+  return serverUrl(file, width, height, version);
+}
+
+function serverUrl(file: FileEntry, width: number | undefined, height: number | undefined, version: string): string {
   const resized = isResizable(file) && Boolean(width || height);
   const earlier = version !== file.version;
   // An earlier version's whole file comes straight from the server, the way uploads go. In the
@@ -71,7 +93,8 @@ export function fileUrl(file: FileEntry, width?: number, height?: number, versio
 export async function listFiles(): Promise<FileEntry[]> {
   const res = await fetch(FILES);
   if (!res.ok) throw new Error(failureMessage(res));
-  return res.json();
+  const list: FileEntry[] = await res.json();
+  return import.meta.env.DEV && dataMode() !== "demo" ? fixtureFiles(list) : list;
 }
 
 
@@ -115,6 +138,8 @@ export function uploadFile(
         const { error, etag } = JSON.parse(request.responseText);
         return reject(new Conflict(error, etag));
       }
+      // A name the server won't take (too long, or not a plain name) comes back as 400.
+      if (request.status === 400) return reject(new Error("The server won't take this name. Try a shorter one"));
       reject(new Error(`The server answered ${request.status}`));
     };
     request.onerror = () => reject(new Error("Couldn't reach the server"));
@@ -124,6 +149,7 @@ export function uploadFile(
 
 /** Every saved version of one file, newest first (GET /files/:name/versions). */
 export async function listVersions(name: string): Promise<Version[]> {
+  if (import.meta.env.DEV && isFixture(name)) return fixtureVersions(name);
   const res = await fetch(`${FILES}/${encodeURIComponent(name)}/versions`);
   if (!res.ok) throw new Error(failureMessage(res));
   return res.json();

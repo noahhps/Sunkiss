@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type CSSProperties, type DragEvent } from "react";
-import { Conflict, fileUrl, isVideo, restoreVersion, uploadFile, type FileEntry, type Version } from "../api";
-import { formatSize, formatWhen } from "../format";
+import { Conflict, fileUrl, isVideo, isViewable, kindLabel, restoreVersion, uploadFile, type FileEntry, type Version } from "../api";
+import { formatCount, formatSize, formatWhen } from "../format";
 import { useVersions } from "../hooks/useHistory";
+import { useInView } from "../hooks/useInView";
 import Icon from "./Icon";
 
 // A name's extension, lowercase: "png" for "Photo.PNG".
@@ -112,7 +113,7 @@ export default function VersionTree({
         <h2>History</h2>
         {versions.length > 0 && (
           <span>
-            {versions.length} {versions.length === 1 ? "version" : "versions"}
+            {formatCount(versions.length)} {versions.length === 1 ? "version" : "versions"}
           </span>
         )}
       </header>
@@ -186,17 +187,43 @@ export default function VersionTree({
   );
 }
 
-// A small picture of one version: a preview of an image, or a video's first frame.
+// A small picture of one version: a preview of an image, or a video's first frame, or the
+// file's kind when there's no picture. A video's frame is only there while its row is on
+// screen: a <video> per version, for a file saved a thousand times, is enough to bring the
+// page down.
 function Thumb({ file, version }: { file: FileEntry; version: Version }) {
-  return isVideo(file) ? (
-    <video
-      className="version-thumb"
-      src={`${fileUrl(file, undefined, undefined, version.id)}#t=0.1`}
-      preload="metadata"
-      muted
-      playsInline
-    />
-  ) : (
-    <img className="version-thumb" src={fileUrl(file, 96, 96, version.id)} alt="" loading="lazy" draggable={false} />
+  const [box, inView] = useInView<HTMLSpanElement>();
+  const [failed, setFailed] = useState(false);
+  const blank = (
+    <span className="version-thumb version-kind" aria-hidden="true">
+      {kindLabel(file.name)}
+    </span>
+  );
+  if (!isViewable(file) || failed) return blank;
+  if (!isVideo(file)) {
+    return (
+      <img
+        className="version-thumb"
+        src={fileUrl(file, 96, 96, version.id)}
+        alt=""
+        loading="lazy"
+        draggable={false}
+        onError={() => setFailed(true)}
+      />
+    );
+  }
+  return (
+    <span className="version-thumb" ref={box}>
+      {inView && (
+        <video
+          className="version-thumb-video"
+          src={`${fileUrl(file, undefined, undefined, version.id)}#t=0.1`}
+          preload="metadata"
+          muted
+          playsInline
+          onError={() => setFailed(true)}
+        />
+      )}
+    </span>
   );
 }

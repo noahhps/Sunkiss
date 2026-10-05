@@ -22,8 +22,11 @@ const FILES_DIR = path.join(import.meta.dirname, '..', '..', 'files');
 const VERSIONS_DIR = path.join(FILES_DIR, '.versions');
 
 // Only plain file names: blocks "../" tricks that would reach outside the folder, and hidden
-// names like .versions.
-const isSafeName = (name: string) => name === path.basename(name) && !name.startsWith('.');
+// names like .versions. And no longer than the disk allows (255 bytes on APFS), so a name
+// that's too long is turned away with a clear answer rather than failing partway through a save.
+const MAX_NAME_BYTES = 255;
+const isSafeName = (name: string) =>
+  name === path.basename(name) && !name.startsWith('.') && Buffer.byteLength(name) <= MAX_NAME_BYTES;
 
 const typeOf = (name: string) =>
   CONTENT_TYPES[path.extname(name).toLowerCase()] ?? 'application/octet-stream';

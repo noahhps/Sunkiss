@@ -3,7 +3,9 @@
    fills rather than outlines, and icons are filled shapes or bold marks (Icon.tsx).
    The glass itself is a native macOS material (src-tauri/src/lib.rs); this sheet only
    draws what's on top of it. The font is Sunkiss's own, not QuickView's DM Mono: Inter,
-   bundled with the app (src/main.tsx). */
+   bundled with the app (src/main.tsx). How things move is in motion.css. */
+
+@import "./motion.css";
 
 :root {
   /* Dark first, as in QuickView; the light versions are below. */
@@ -36,6 +38,9 @@
   --sidebar-fill: rgba(0, 0, 0, 0.16);
   /* Menus need to be read over anything, so their glass is mostly opaque. */
   --menu-fill: rgba(38, 41, 48, 0.86);
+  /* What floats, when the system asks for less transparency: no glass at all. */
+  --solid: #30343c;
+  --focus-ring: 0 0 0 3px rgba(77, 125, 250, 0.35);
 
   font-family: "Inter Variable", Inter, Avenir, Helvetica, Arial, sans-serif;
   font-size: 16px;
@@ -67,6 +72,33 @@
     --float-shadow: 0 18px 40px -16px rgba(20, 23, 29, 0.3);
     --sidebar-fill: rgba(20, 23, 29, 0.045);
     --menu-fill: rgba(250, 250, 252, 0.88);
+    --solid: #ffffff;
+  }
+}
+
+/* Less transparency asked for: what floats goes solid, and loses its blur. */
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --float: var(--solid);
+    --float-hover: var(--solid);
+    --menu-fill: var(--solid);
+  }
+  .composer,
+  .tool,
+  .pill,
+  .menu,
+  .stage-label {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+}
+/* More contrast asked for: what floats gets a defined edge. */
+@media (prefers-contrast: more) {
+  .composer,
+  .tool,
+  .pill,
+  .menu {
+    border-color: var(--ink) !important;
   }
 }
 
@@ -136,7 +168,12 @@ button {
   border-radius: 999px;
   background: var(--pill);
   cursor: pointer;
-  transition: background 140ms ease, border-color 140ms ease, opacity 140ms ease;
+  /* Going down is quick; the fill follows at its own pace. */
+  transition:
+    scale var(--press) var(--ease-out),
+    background var(--hover) var(--ease),
+    border-color var(--hover) var(--ease),
+    opacity var(--hover) var(--ease);
 }
 button:hover:not(:disabled) {
   background: var(--pill-hover);
@@ -153,13 +190,13 @@ select {
   border-radius: 12px;
   background: var(--pill);
   outline: none;
-  transition: background 140ms ease, box-shadow 140ms ease;
+  transition: background var(--hover) var(--ease), box-shadow var(--hover) var(--ease);
 }
 /* Focused, a field fills in, with a soft accent halo to say where typing goes. */
 input:not([type="checkbox"]):focus,
 select:focus {
   background: var(--pill-hover);
-  box-shadow: 0 0 0 3px rgba(77, 125, 250, 0.35);
+  box-shadow: var(--focus-ring);
 }
 input::placeholder {
   color: var(--faint);
@@ -212,10 +249,13 @@ svg[data-paint="glyph"] {
   -webkit-backdrop-filter: blur(22px) saturate(170%) brightness(1.08);
   backdrop-filter: blur(22px) saturate(170%) brightness(1.08);
   box-shadow: var(--float-shadow);
-  transition: background 140ms ease, box-shadow 140ms ease;
+  transition:
+    scale var(--press) var(--ease-out),
+    background var(--hover) var(--ease),
+    box-shadow var(--hover) var(--ease);
 }
 .composer:focus-within {
-  box-shadow: 0 0 0 3px rgba(77, 125, 250, 0.35), var(--float-shadow);
+  box-shadow: var(--focus-ring), var(--float-shadow);
 }
 .composer input:not([type="checkbox"]) {
   flex: 1;
@@ -404,6 +444,14 @@ svg[data-paint="glyph"] {
   -webkit-backdrop-filter: blur(22px) saturate(170%);
   backdrop-filter: blur(22px) saturate(170%);
   box-shadow: var(--float-shadow);
+  /* Grows out of the arrow that opened it (top right), not out of its own middle, and comes
+     into focus as it does, like glass arriving rather than a box fading up. No exit: it goes
+     the instant you're done with it. */
+  transform-origin: top right;
+  --from-scale: 0.96;
+  --rise: -4px;
+  --from-blur: 3px;
+  animation: enter var(--pop) var(--ease-out) backwards;
 }
 .menu button {
   display: flex;
@@ -416,6 +464,10 @@ svg[data-paint="glyph"] {
   background: none;
   font-size: 13px;
   text-align: left;
+  transition: none; /* menus highlight instantly, as macOS's do */
+}
+.menu button:active {
+  scale: 1;
 }
 .menu button:hover:not(:disabled),
 .menu button:focus-visible {
@@ -466,26 +518,26 @@ svg[data-paint="glyph"] {
   50% { opacity: 1; }
 }
 
-/* New content fades in rather than popping. */
+/* New content develops rather than popping: it comes up out of a slight blur, which hides
+   the moment one picture swaps for another. */
 .fade-in {
-  animation: fade-in 380ms ease-out both;
+  --from-blur: 6px;
+  animation: enter var(--enter) var(--ease-out) backwards;
 }
-@keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+
+/* A whole screen, when you go to it from the sidebar. Only a fade, and a quick one: you go
+   back and forth between screens all day. (No movement either: a screen holds fixed things,
+   the search bar and toolbar, and moving it would carry them along.) */
+.screen {
+  animation: enter var(--pop) var(--ease-out) backwards;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .waiting,
-  .fade-in,
-  .badge,
-  .upload,
-  .strip {
+  .badge {
     animation: none;
   }
-  .dropzone,
-  .strip,
-  .tilt-card {
+  .strip {
     transition: none;
   }
   /* Breathes instead of turning (and still says when the answer is in). */
@@ -530,6 +582,21 @@ svg[data-paint="glyph"] {
   color: #fff;
   font-size: 12px;
   white-space: nowrap;
+  /* Drops in from the top edge it's pinned to. */
+  --rise: -6px;
+  --from-blur: 3px;
+  animation: enter var(--pop) var(--ease-out) backwards;
+}
+.stage-kind {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.stage-kind .print-tile {
+  width: 160px;
+  height: 120px;
+  font-size: 16px;
 }
 .stage :is(img, video) {
   max-height: var(--stage-height);
@@ -547,13 +614,31 @@ svg[data-paint="glyph"] {
   border-radius: 10px;
   box-shadow: 0 12px 32px -12px rgba(0, 0, 0, 0.55);
   transform: translateZ(0) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
-  /* Springing back flat when the pointer leaves… */
-  transition: transform 650ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  /* Springing back flat when the pointer leaves, the light going with it… The hand set it
+     rocking, so it may rock past flat a little (Apple's rotation spring: damping 0.8). */
+  transition:
+    transform var(--spring-bouncy-ms) var(--spring-bouncy),
+    --light var(--spring-ms) var(--ease-out),
+    --dark var(--spring-ms) var(--ease-out);
 }
 /* …and close behind the pointer while it's there, sunk a little into the screen. */
 .tilt-card[data-tilting] {
   transform: translateZ(-14px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
-  transition: transform 120ms ease-out;
+  transition:
+    transform 120ms var(--ease-out),
+    --light 120ms var(--ease-out),
+    --dark 120ms var(--ease-out);
+}
+/* Registered, so the light and shade can fade rather than switch off. */
+@property --light {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+@property --dark {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
 }
 .tilt-card img {
   display: block;
@@ -589,15 +674,31 @@ svg[data-paint="glyph"] {
   border: none;
   border-radius: 0;
   background: none;
+  /* Prints rise into place as the grid appears, one after another from the first (Home.tsx
+     sets --i on the first few; the rest, and any that come back as you type, don't wait). */
+  --rise: 8px;
+  --from-scale: 0.97;
+  --from-blur: 2px;
+  animation: enter var(--enter) var(--ease-out) backwards;
+  animation-delay: calc(min(var(--i, 0), 14) * 28ms);
 }
 .print:hover:not(:disabled) {
   background: none;
+}
+/* The picture goes down, not the whole print with its caption. */
+.print:active {
+  scale: 1;
 }
 /* Holds the picture and anything pinned to its corners, and lifts them together on hover. */
 .frame {
   position: relative;
   display: block;
-  transition: transform 140ms ease;
+  transition:
+    transform 200ms var(--ease-out),
+    scale var(--press) var(--ease-out);
+}
+.print:active .frame {
+  scale: var(--press-scale);
 }
 .print :is(img, video) {
   display: block;
@@ -605,14 +706,22 @@ svg[data-paint="glyph"] {
   height: auto;
   max-width: 100px; /* keeps each image's shape within 200×200 */
   max-height: 100px;
+  /* A panorama or a page-long capture stays a recognisable picture rather than a sliver:
+     its short side is held at 32px and the picture is cropped to fit. */
+  min-width: 32px;
+  min-height: 32px;
+  object-fit: cover;
   border: 3px solid var(--print-edge);
   border-radius: 3px;
   box-shadow: 0 3px 10px -2px rgba(0, 0, 0, 0.45);
   background: var(--pill);
-  transition: border-color 140ms ease;
+  transition: border-color var(--hover) var(--ease);
 }
-.print:hover .frame {
-  transform: translateY(-2px);
+/* Only with a real pointer: a tap on a touch screen would leave it stuck lifted. */
+@media (hover: hover) and (pointer: fine) {
+  .print:hover .frame {
+    transform: translateY(-2px);
+  }
 }
 .print[aria-pressed="true"] :is(img, video) {
   border-color: var(--accent);
@@ -630,6 +739,9 @@ svg[data-paint="glyph"] {
   background: var(--accent);
   color: #fff;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+  /* Pops in when the file lands: the moment it's done is worth marking. */
+  --from-scale: 0.6;
+  animation: enter var(--pop) var(--ease-out) backwards;
 }
 .badge svg {
   width: 10px;
@@ -672,14 +784,44 @@ svg[data-paint="glyph"] {
   width: 9px;
   height: 9px;
 }
+/* A file with no picture to show (a PSD, a PDF, a picture that won't load): a tile the shape
+   of a print, with the file's kind on it. Also holds a video's place until it's on screen. */
+.print-tile {
+  box-sizing: border-box;
+  width: 100px;
+  height: 75px;
+  display: grid;
+  place-items: center;
+  border: 3px solid var(--print-edge);
+  border-radius: 3px;
+  background: var(--pill);
+  box-shadow: 0 3px 10px -2px rgba(0, 0, 0, 0.45);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--dim);
+  transition: border-color var(--hover) var(--ease);
+}
+.print[aria-pressed="true"] .print-tile {
+  border-color: var(--accent);
+}
+/* The name, shortened in the middle (Print.tsx): the start gives way to an ellipsis, and the
+   end, where names in one folder tend to differ, stays. */
 .caption {
   max-width: 200px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: flex;
   font-size: 10.5px;
   letter-spacing: 0.04em;
   color: var(--dim);
+  white-space: pre; /* keeps the space where the name was split */
+}
+.caption-head {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.caption-tail {
+  flex: none;
 }
 
 /* An open file and its history ---------------------------------------------- */
@@ -695,8 +837,22 @@ svg[data-paint="glyph"] {
   gap: var(--history-gap);
   align-items: start;
 }
+/* Opening a file: the stage comes into focus where you'll look, the history slides in from
+   the side it lives on, and the timeline rises from below, each a beat after the last. Only
+   on opening; going from file to file along the timeline leaves them be. */
 .file-view .stage {
   margin-top: 0;
+  --from-scale: 0.98;
+  --from-blur: 4px;
+  animation: enter var(--enter) var(--ease-out) backwards;
+}
+.file-view .versions {
+  --shift: 12px;
+  animation: enter var(--enter) var(--ease-out) 40ms backwards;
+}
+.file-view + .timeline {
+  --rise: 12px;
+  animation: enter var(--enter) var(--ease-out) 80ms backwards;
 }
 /* Narrower by the history beside it. */
 .file-view .tilt-card img {
@@ -712,7 +868,7 @@ svg[data-paint="glyph"] {
   flex-direction: column;
   border-radius: 14px;
   text-align: left;
-  transition: background 140ms ease;
+  transition: background var(--hover) var(--ease);
 }
 /* A file being dragged over, to go in as the next version: the history fills with the accent. */
 .versions[data-over] {
@@ -744,6 +900,11 @@ svg[data-paint="glyph"] {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  /* The last row fades out rather than being cut off mid-line, which says "there's more".
+     The padding lets the real last row scroll clear of the fade. */
+  padding-bottom: 20px;
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -762,6 +923,7 @@ svg[data-paint="glyph"] {
   border-radius: 10px;
   background: none;
   text-align: left;
+  --press-scale: 0.98; /* a wide row goes down less */
 }
 .version:hover:not(:disabled) {
   background: var(--pill);
@@ -777,6 +939,24 @@ svg[data-paint="glyph"] {
   border-radius: 6px;
   background: var(--pill);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+span.version-thumb {
+  display: block;
+  overflow: hidden;
+}
+.version-thumb-video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.version-kind {
+  display: grid !important;
+  place-items: center;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--dim);
 }
 .version-text {
   min-width: 0;
@@ -805,6 +985,11 @@ svg[data-paint="glyph"] {
   padding: 3px 12px;
   font-size: 12px;
   font-weight: 500;
+  /* Comes down out of the version above it, which is what it acts on. */
+  transform-origin: top left;
+  --rise: -4px;
+  --from-scale: 0.96;
+  animation: enter var(--pop) var(--ease-out) backwards;
 }
 /* Choose a file (or drop one on the history) to save as the next version. A solid button
    that fills with the accent from the left as it goes, like Download. */
@@ -820,6 +1005,7 @@ svg[data-paint="glyph"] {
   background: linear-gradient(90deg, rgba(77, 125, 250, 0.38) var(--progress, 0%), var(--surface, var(--pill)) 0);
   font-size: 12.5px;
   font-variant-numeric: tabular-nums;
+  --press-scale: 0.98;
 }
 .new-version:hover:not(:disabled) {
   --surface: var(--pill-hover);
@@ -842,6 +1028,8 @@ svg[data-paint="glyph"] {
   font-size: 12px;
   line-height: 17px;
   color: var(--warn);
+  --rise: -4px;
+  animation: enter var(--pop) var(--ease-out) backwards;
 }
 /* In a narrow window the history goes under the stage. */
 @media (max-width: 760px) {
@@ -855,6 +1043,43 @@ svg[data-paint="glyph"] {
   .file-view .tilt-card img {
     max-width: min(calc(100vw - var(--sidebar-w) - 96px), 800px);
   }
+}
+
+/* Nothing in Sunkiss yet: says so, and offers the way in. */
+.empty {
+  margin-top: 12vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  --rise: 8px;
+  animation: enter var(--enter) var(--ease-out) backwards;
+}
+.empty h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+}
+.empty p {
+  margin: 0 0 12px;
+  font-size: 13.5px;
+  color: var(--dim);
+}
+
+/* After a long list, the rest on request (Home.tsx, Timeline.tsx). */
+.show-more {
+  align-self: center;
+  margin: 8px 0 24px;
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
+.timeline > .show-more-item {
+  flex: none;
+  align-self: center;
+  padding: 24px 24px 0 0;
+}
+.timeline .show-more {
+  margin: 0;
 }
 
 /* Timeline ----------------------------------------------------------------- */
@@ -949,22 +1174,37 @@ svg[data-paint="glyph"] {
   border-radius: var(--radius);
   background: var(--pill);
   cursor: pointer;
+  /* Leaning in springs (a file being carried over has momentum behind it, so it may overshoot
+     a touch); going down when clicked doesn't. */
   transition:
-    transform 420ms cubic-bezier(0.34, 1.56, 0.64, 1),
-    background 140ms ease,
-    box-shadow 140ms ease;
+    transform var(--spring-bouncy-ms) var(--spring-bouncy),
+    scale var(--press) var(--ease-out),
+    background var(--hover) var(--ease),
+    box-shadow var(--hover) var(--ease);
+  --lean: 1.025;
+}
+.dropzone:active {
+  scale: 0.99;
 }
 .dropzone:hover {
   background: var(--pill-hover);
 }
 .dropzone:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(77, 125, 250, 0.35);
+  box-shadow: var(--focus-ring);
 }
-/* A file over it: it fills with the accent. */
+/* A file over it: it leans in and fills with the accent. */
 .dropzone[data-over] {
-  transform: scale(1.025);
+  transform: scale(var(--lean));
   background: rgba(77, 125, 250, 0.22);
+}
+@media (prefers-reduced-motion: reduce) {
+  .dropzone {
+    --lean: 1;
+  }
+  .dropzone:active {
+    scale: 1;
+  }
 }
 /* The upload mark, solid, in the accent colour. */
 .drop-icon {
@@ -1006,13 +1246,10 @@ svg[data-paint="glyph"] {
   border-radius: 9px;
   background: var(--pill);
   line-height: 22px;
-  animation: spring-in 520ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
-}
-@keyframes spring-in {
-  from {
-    opacity: 0;
-    transform: translateY(6px) scale(0.97);
-  }
+  --rise: 6px;
+  --from-scale: 0.98;
+  --from-blur: 2px;
+  animation: enter var(--enter) var(--ease-out) backwards;
 }
 .upload-text {
   flex: 1;
@@ -1061,12 +1298,15 @@ svg[data-paint="glyph"] {
   bottom: -1px;
   height: 2px;
 }
+/* Grows by scaling rather than by width, so each step costs no layout. Linear: it's a
+   measure of bytes, not a gesture. */
 .upload-progress > span {
   display: block;
   height: 100%;
   border-radius: 1px;
   background: var(--accent);
-  transition: width 120ms linear;
+  transform-origin: left;
+  transition: transform 120ms linear;
 }
 .upload-actions {
   flex: none;
@@ -1137,8 +1377,9 @@ svg[data-paint="glyph"] {
   margin: 0;
   flex-basis: 0;
   overflow: hidden;
-  transition: flex-grow 560ms cubic-bezier(0.34, 1.56, 0.64, 1);
-  animation: strip-in 640ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  /* Following the pointer is hover, not momentum: it settles without overshoot. */
+  transition: flex-grow var(--spring-ms) var(--spring);
+  animation: strip-in var(--spring-ms) var(--spring) both;
 }
 /* A new image opens in from nothing. */
 @keyframes strip-in {
@@ -1164,7 +1405,7 @@ svg[data-paint="glyph"] {
   color: #fff;
   background: linear-gradient(transparent, rgba(0, 0, 0, 0.55));
   opacity: 0;
-  transition: opacity 200ms ease;
+  transition: opacity 200ms var(--ease);
 }
 .strip[data-open] figcaption {
   opacity: 1;
@@ -1178,6 +1419,7 @@ svg[data-paint="glyph"] {
 
 /* A solid panel down the left, a shade darker than the page, rather than a line between them. */
 .sidebar {
+  --press-scale: 0.98;
   position: sticky;
   top: 0;
   height: 100vh;
@@ -1204,6 +1446,8 @@ svg[data-paint="glyph"] {
   border-radius: 7px;
 }
 .nav-link {
+  position: relative;
+  z-index: 1; /* over the seal */
   width: 100%;
   padding: 7px 12px;
   border-color: transparent;
@@ -1217,7 +1461,27 @@ svg[data-paint="glyph"] {
   background: var(--pill);
   color: var(--ink);
 }
-.nav-link[aria-current="page"] {
-  background: var(--pill-strong);
+.nav-link[aria-current="page"],
+.nav-link[aria-current="page"]:hover:not(:disabled) {
+  background: transparent; /* the seal under it is its fill */
   color: var(--ink);
+}
+/* The current screen's pill, as one shape that slides from link to link (NavBar.tsx), so
+   you see where you came from as well as where you are. */
+.nav-seal {
+  position: absolute;
+  top: 0;
+  left: 12px;
+  right: 12px;
+  border-radius: 10px;
+  background: var(--pill-strong);
+  pointer-events: none;
+  transition:
+    transform var(--spring-ms) var(--spring),
+    height var(--spring-ms) var(--spring);
+}
+@media (prefers-reduced-motion: reduce) {
+  .nav-seal {
+    transition: none;
+  }
 }
